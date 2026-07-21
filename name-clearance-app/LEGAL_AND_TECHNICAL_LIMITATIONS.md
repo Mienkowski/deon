@@ -54,6 +54,15 @@ Regulaminy tych serwisów zwykle zakazują automatycznego scrapingu. Aplikacja
 **nie** obchodzi CAPTCHA, limitów ani zabezpieczeń i **nie** scrapuje tych
 źródeł. Zamiast tego generuje legalne linki do ręcznego wykonania zapytań.
 
+### 2.3a. Zbiór przykładowy do analizy podobieństwa
+Ekran „Analiza podobieństwa" korzysta domyślnie z **wbudowanego zbioru
+PRZYKŁADOWEGO** — dane **fikcyjne/ilustracyjne**, jawnie oznaczone, **nie**
+odzwierciedlają stanu żadnego rejestru. Służą wyłącznie do demonstracji silnika
+podobieństwa w środowisku bez dostępu do sieci. Do realnej pracy należy użyć:
+importu własnej listy (legalne, dane użytkownika) albo realnego API (EPO OPS,
+a docelowo EUIPO) w środowisku z egress i kluczem. Wyniki na zbiorze
+przykładowym **nie** mają znaczenia prawnego.
+
 ### 2.4. Rejestry przedsiębiorców (KRS/CEIDG/REGON)
 KRS i CEIDG udostępniają dane publicznie, lecz z warunkami korzystania. W MVP
 działają w trybie deep-link; integracja z ich API to Etap 3, po weryfikacji

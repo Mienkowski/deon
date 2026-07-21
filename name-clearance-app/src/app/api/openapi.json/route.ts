@@ -27,6 +27,13 @@ const spec = {
         responses: { "201": { description: "Utworzono" }, "400": { description: "Błąd walidacji" }, "429": { description: "Limit zapytań" } },
       },
     },
+    "/api/similarity": {
+      post: {
+        summary: "Analiza podobieństwa nazwy do korpusu (sample | custom | epo)",
+        requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["name"], properties: { name: { type: "string" }, source: { type: "string", enum: ["sample", "custom", "epo"] }, records: { type: "string", description: "surowy import (jedna nazwa/wiersz lub CSV)" }, minScore: { type: "number" } } } } } },
+        responses: { "200": { description: "Ranking podobnych nazw z wyjaśnieniem" }, "400": { description: "Błąd walidacji" }, "503": { description: "EPO OPS nieskonfigurowane" } },
+      },
+    },
     "/api/compare": {
       post: {
         summary: "Porównanie wielu nazw (2–10 kandydatów)",

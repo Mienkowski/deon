@@ -13,6 +13,12 @@ Dokument projektowy: [`ARCHITECTURE_AND_IMPLEMENTATION_PLAN.md`](./ARCHITECTURE_
 
 ## Co robi (MVP)
 
+- **Analiza podobieństwa znaków towarowych** (ekran `/podobienstwo`) — rdzeń:
+  porównuje nazwę z korpusem znaków/firm (patenty pomocniczo) i zwraca ranking
+  podobnych oznaczeń z pełnym wyjaśnieniem (który algorytm, wynik liczbowy,
+  wspólne fragmenty, dopasowanie przez wariant vs identyczność literalna).
+  Korpus: wbudowany zbiór **przykładowy**, **import własnej listy** (CSV/tekst)
+  lub realne **EPO OPS** (gdy skonfigurowany klucz + egress).
 - Formularz nazwy: typ, opis, branża, terytoria, towary/usługi.
 - **Sugestia klas nicejskich** z opisu (reguły; opcjonalnie LLM), edytowalna.
 - **Generator wariantów** nazwy (20 klas transformacji, wagi) — PL diakrytyki,
@@ -93,6 +99,7 @@ Dokumentacja OpenAPI: `GET /api/openapi.json`. Kluczowe endpointy:
 | GET | `/api/search-runs/{id}/status` | Status + źródła |
 | GET | `/api/search-runs/{id}/results` | Wyniki i statusy źródeł |
 | GET | `/api/search-runs/{id}/risk` | Ocena ryzyka + rekomendacje |
+| POST | `/api/similarity` | Analiza podobieństwa nazwy do korpusu (`sample`/`custom`/`epo`) |
 | POST | `/api/compare` | Porównanie 2–10 nazw |
 | POST | `/api/reports/{id}/export?format=json\|csv` | Eksport raportu |
 | POST | `/api/nice-classes/suggest` | Sugestia klas nicejskich |
