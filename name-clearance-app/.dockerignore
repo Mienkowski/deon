@@ -1,0 +1,8 @@
+node_modules
+.next
+.git
+npm-debug.log
+.env.local
+.env
+*.md
+!ARCHITECTURE_AND_IMPLEMENTATION_PLAN.md
