@@ -30,6 +30,9 @@ Dokument projektowy: [`ARCHITECTURE_AND_IMPLEMENTATION_PLAN.md`](./ARCHITECTURE_
 - **Model ryzyka 0–100** z regułami nadrzędnymi i statusami A/B/C/D; rozróżnia
   **fakt ze źródła / ocenę algorytmu / wniosek LLM**.
 - **Raport**: ekran + eksport **JSON / CSV** + **PDF** (druk przeglądarki).
+- **Porównanie do 10 nazw** (sekcja 19) — tabela: ryzyko, identyczne/podobne,
+  wolne domeny, aktywne podmioty, kompletność + rekomendowana kolejność.
+- **Ekrany**: badanie nazwy, porównanie, źródła danych, audyt (nawigacja górna).
 - **Historia badań**, statusy per-źródło, audyt, OpenAPI.
 
 ## Szybki start (lokalnie)
@@ -90,6 +93,7 @@ Dokumentacja OpenAPI: `GET /api/openapi.json`. Kluczowe endpointy:
 | GET | `/api/search-runs/{id}/status` | Status + źródła |
 | GET | `/api/search-runs/{id}/results` | Wyniki i statusy źródeł |
 | GET | `/api/search-runs/{id}/risk` | Ocena ryzyka + rekomendacje |
+| POST | `/api/compare` | Porównanie 2–10 nazw |
 | POST | `/api/reports/{id}/export?format=json\|csv` | Eksport raportu |
 | POST | `/api/nice-classes/suggest` | Sugestia klas nicejskich |
 | GET | `/api/data-sources` | Katalog źródeł i tryb dostępu |

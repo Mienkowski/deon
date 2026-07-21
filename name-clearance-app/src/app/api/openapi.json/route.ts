@@ -27,6 +27,13 @@ const spec = {
         responses: { "201": { description: "Utworzono" }, "400": { description: "Błąd walidacji" }, "429": { description: "Limit zapytań" } },
       },
     },
+    "/api/compare": {
+      post: {
+        summary: "Porównanie wielu nazw (2–10 kandydatów)",
+        requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["candidates"], properties: { candidates: { type: "array", items: { $ref: "#/components/schemas/CandidateInput" } } } } } } },
+        responses: { "201": { description: "Wynik porównania z rekomendowaną kolejnością" }, "400": { description: "Błąd walidacji" }, "429": { description: "Limit zapytań" } },
+      },
+    },
     "/api/search-runs/{id}": { get: { summary: "Pełny wynik badania", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }], responses: { "200": { description: "OK" }, "404": { description: "Nie znaleziono" } } } },
     "/api/search-runs/{id}/status": { get: { summary: "Status badania i źródeł", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }], responses: { "200": { description: "OK" } } } },
     "/api/search-runs/{id}/results": { get: { summary: "Wyniki i statusy źródeł", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }], responses: { "200": { description: "OK" } } } },

@@ -38,6 +38,13 @@ body {
 
 a { color: var(--accent); }
 
+.topnav { position: sticky; top: 0; z-index: 10; background: var(--panel); border-bottom: 1px solid var(--border); backdrop-filter: blur(8px); }
+.topnav-inner { max-width: 1080px; margin: 0 auto; padding: 12px 20px; display: flex; align-items: center; gap: 20px; }
+.topnav-brand { font-weight: 800; letter-spacing: -0.02em; text-decoration: none; color: var(--accent); font-size: 18px; }
+.topnav-links { display: flex; gap: 6px; flex-wrap: wrap; }
+.topnav-links a { text-decoration: none; color: var(--muted); font-size: 14px; padding: 6px 12px; border-radius: 8px; }
+.topnav-links a:hover { color: var(--text); background: var(--panel-2); }
+
 .container { max-width: 1080px; margin: 0 auto; padding: 24px 20px 80px; }
 
 .app-header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
