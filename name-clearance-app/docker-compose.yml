@@ -1,0 +1,41 @@
+# Uruchomienie MVP jednym poleceniem: `docker compose up --build`
+# Aplikacja: http://localhost:3000
+#
+# Uwaga: MVP używa store'u w pamięci procesu. Usługi postgres/redis poniżej są
+# przygotowane pod Etap 3 (trwały store + cache) i domyślnie zakomentowane,
+# aby nie były wymagane do uruchomienia MVP.
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - CONNECTOR_DOMAINS_RDAP_ENABLED=true
+      - CONNECTOR_HTTP_TIMEOUT_MS=6000
+      - RATE_LIMIT_SEARCH_PER_MINUTE=20
+      # Opcjonalny LLM (bez klucza działa w pełni lokalnie):
+      # - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      # - ANTHROPIC_MODEL=claude-sonnet-5
+    restart: unless-stopped
+
+  # ── Etap 3 (trwały store + cache) — odkomentuj po wdrożeniu adaptera Postgres ──
+  # postgres:
+  #   image: pgvector/pgvector:pg16
+  #   environment:
+  #     POSTGRES_USER: nca
+  #     POSTGRES_PASSWORD: change-me
+  #     POSTGRES_DB: name_clearance
+  #   volumes:
+  #     - pgdata:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+  #
+  # redis:
+  #   image: redis:7-alpine
+  #   ports:
+  #     - "6379:6379"
+
+# volumes:
+#   pgdata:
