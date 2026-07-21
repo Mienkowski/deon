@@ -30,8 +30,8 @@ const spec = {
     "/api/similarity": {
       post: {
         summary: "Analiza podobieństwa nazwy do korpusu (sample | custom | epo)",
-        requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["name"], properties: { name: { type: "string" }, source: { type: "string", enum: ["sample", "custom", "epo"] }, records: { type: "string", description: "surowy import (jedna nazwa/wiersz lub CSV)" }, minScore: { type: "number" } } } } } },
-        responses: { "200": { description: "Ranking podobnych nazw z wyjaśnieniem" }, "400": { description: "Błąd walidacji" }, "503": { description: "EPO OPS nieskonfigurowane" } },
+        requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["name"], properties: { name: { type: "string" }, source: { type: "string", enum: ["sample", "custom", "euipo", "epo"] }, records: { type: "string", description: "surowy import (jedna nazwa/wiersz lub CSV)" }, minScore: { type: "number" } } } } } },
+        responses: { "200": { description: "Ranking podobnych nazw z wyjaśnieniem" }, "400": { description: "Błąd walidacji" }, "503": { description: "EUIPO/EPO nieskonfigurowane" } },
       },
     },
     "/api/compare": {

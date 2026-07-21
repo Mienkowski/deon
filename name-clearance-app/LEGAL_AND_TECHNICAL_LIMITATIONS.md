@@ -29,14 +29,26 @@ Użytkownik musi zaakceptować zastrzeżenie przed uruchomieniem badania.
 
 ## 2. Ograniczenia źródeł danych
 
-### 2.1. Brak otwartych API rejestrów znaków
-UPRP, EUIPO (TMview/eSearch/TMclass/DesignView/GIview), WIPO (Global Brand
-Database/Madrid Monitor/PATENTSCOPE) oraz EPO (Espacenet/Register) nie
-udostępniają otwartego, darmowego API do masowego, automatycznego pobierania
-danych. Dlatego w MVP konektory tych źródeł działają w trybie
-**„manual verification required"**: aplikacja generuje gotowe, legalne
-deep-linki do oficjalnych wyszukiwarek, ale **nie pobiera** z nich danych
-automatycznie.
+### 2.1. Dostęp do rejestrów znaków (EUIPO realne API)
+**EUIPO** udostępnia **Trade Marks Search API** (OAuth2 client_credentials,
+rejestracja na portalu deweloperskim EUIPO). Aplikacja ma **realny konektor**
+EUIPO (`src/lib/connectors/euipo.ts`): po ustawieniu `EUIPO_CLIENT_ID/SECRET`
+w środowisku z dostępem sieciowym przeszukuje znaki automatycznie — zarówno w
+analizie podobieństwa (źródło „euipo"), jak i w głównym badaniu (status źródła
+„ok", co pozwala ocenie ryzyka osiągnąć status A/B/C). Konektor jest defensywny:
+każdy błąd/limit degraduje do trybu manualnego, nie wywraca aplikacji.
+
+Pozostałe rejestry — UPRP, WIPO (Global Brand Database/Madrid Monitor/
+PATENTSCOPE), EPO (Register) oraz część funkcji EUIPO (TMclass/DesignView/
+GIview) — nie mają otwartego, darmowego API do masowego pobierania lub wymagają
+odrębnych umów. Działają w trybie **„manual verification required"**: aplikacja
+generuje gotowe, legalne deep-linki, ale **nie pobiera** danych automatycznie.
+Patenty (EPO OPS) mają realny, gated konektor jako źródło pomocnicze.
+
+**Uwaga o środowisku:** jeżeli środowisko uruchomieniowe blokuje ruch wychodzący
+(egress), realne API (EUIPO/EPO/RDAP) nie zadziała mimo poprawnych kluczy —
+konektor zwróci pustą listę / status „unavailable", a aplikacja pozostanie
+w pełni funkcjonalna na zbiorze przykładowym i imporcie.
 
 **Konsekwencja dla oceny:** skoro rejestry znaków nie są przeszukiwane
 automatycznie, aplikacja **nigdy** nie wskazuje statusu A („brak istotnych

@@ -10,6 +10,8 @@ import type {
 } from "@/lib/types";
 import { DEEP_LINK_SOURCES, socialMediaLinks } from "./deepLinks";
 import { checkDomains } from "./domains";
+import { isEuipoConfigured, searchEuipoByName } from "./euipo";
+import type { CorpusRecord } from "./corpus";
 
 let seq = 0;
 const rid = () => `sr_${(seq += 1)}`;
@@ -49,6 +51,52 @@ export async function runConnectors(candidate: NameCandidate): Promise<Connector
       queryUrls: urls,
       license: src.license,
     });
+  }
+
+  // ── EUIPO: realne API znaków (gdy skonfigurowane) ───────────────────────
+  // Upgrade źródła euipo_tmview z trybu manualnego na realne wyszukiwanie.
+  if (isEuipoConfigured()) {
+    const euipoSource = sources.find((s) => s.id === "euipo_tmview");
+    try {
+      const timeoutMs = Number(process.env.CONNECTOR_HTTP_TIMEOUT_MS ?? 8000);
+      const records: CorpusRecord[] = await searchEuipoByName(name, timeoutMs);
+      for (const rec of records) {
+        results.push({
+          id: rid(),
+          kind: "trademark",
+          title: rec.name,
+          matchedValue: rec.name,
+          owner: rec.owner,
+          legalStatus: rec.legalStatus ?? "unknown",
+          territory: rec.territory,
+          niceClasses: rec.niceClasses,
+          filingDate: rec.filingDate,
+          registrationDate: rec.registrationDate,
+          expiryDate: rec.expiryDate,
+          reputation: rec.reputation,
+          provenance: {
+            source: "EUIPO Trade Marks Search API",
+            externalId: rec.externalId,
+            link: rec.link,
+            retrievedAt: now,
+            verificationStatus: "verified",
+            license: "EUIPO Trade Marks Search API — zgodnie z warunkami EUIPO.",
+          },
+        });
+      }
+      if (euipoSource) {
+        euipoSource.accessMode = "api";
+        euipoSource.status = records.length ? "ok" : "partial";
+        euipoSource.message = records.length
+          ? `Przeszukano EUIPO automatycznie — ${records.length} rekordów. Podobieństwo liczone przez silnik.`
+          : "EUIPO odpowiedziało bez trafień (lub limit) — zweryfikuj też ręcznie przez link.";
+      }
+    } catch {
+      if (euipoSource) {
+        euipoSource.status = "unavailable";
+        euipoSource.message = "Błąd połączenia z EUIPO API — użyj linku do ręcznej weryfikacji.";
+      }
+    }
   }
 
   // ── Domeny: realny RDAP ─────────────────────────────────────────────────

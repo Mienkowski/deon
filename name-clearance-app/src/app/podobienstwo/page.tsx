@@ -12,7 +12,7 @@ function simColor(score: number): string {
 
 export default function SimilarityPage() {
   const [name, setName] = useState("");
-  const [source, setSource] = useState<"sample" | "custom" | "epo">("sample");
+  const [source, setSource] = useState<"sample" | "custom" | "euipo" | "epo">("sample");
   const [records, setRecords] = useState("");
   const [minScore, setMinScore] = useState(0.45);
   const [loading, setLoading] = useState(false);
@@ -73,7 +73,8 @@ export default function SimilarityPage() {
             <select id="src" value={source} onChange={(e) => setSource(e.target.value as typeof source)}>
               <option value="sample">Zbiór przykładowy (demonstracyjny)</option>
               <option value="custom">Import własnej listy nazw</option>
-              <option value="epo">EPO OPS — realne patenty (wymaga klucza)</option>
+              <option value="euipo">EUIPO — realne znaki towarowe (wymaga klucza)</option>
+              <option value="epo">EPO OPS — realne patenty, pomocniczo (wymaga klucza)</option>
             </select>
           </div>
         </div>
@@ -85,9 +86,9 @@ export default function SimilarityPage() {
               placeholder={"Odznaka Plus | EduCert | trademark | PL\nBadgePro | Credly | trademark | US\nDigital Badge | OpenBadge | trademark | EU"} />
           </div>
         )}
-        {source === "epo" && (
+        {(source === "epo" || source === "euipo") && (
           <p className="small muted" style={{ marginTop: 8 }}>
-            Uwaga: to środowisko może blokować egress sieciowy — realne EPO OPS zadziała po wdrożeniu z kluczem i dostępem do sieci. W przeciwnym razie zwróci komunikat o niedostępności.
+            Uwaga: to środowisko może blokować egress sieciowy — realne API {source === "euipo" ? "EUIPO" : "EPO OPS"} zadziała po wdrożeniu z kluczem i dostępem do sieci. W przeciwnym razie zwróci komunikat o niedostępności (HTTP 503).
           </p>
         )}
 

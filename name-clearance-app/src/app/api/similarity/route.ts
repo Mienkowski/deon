@@ -8,12 +8,13 @@ import {
   type CorpusRecord,
 } from "@/lib/connectors/corpus";
 import { isEpoConfigured, searchEpoByName } from "@/lib/connectors/epoOps";
+import { isEuipoConfigured, searchEuipoByName } from "@/lib/connectors/euipo";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { store, newId } from "@/lib/store";
 
 const bodySchema = z.object({
   name: z.string().min(1, "Nazwa jest wymagana").max(200),
-  source: z.enum(["sample", "custom", "epo"]).default("sample"),
+  source: z.enum(["sample", "custom", "epo", "euipo"]).default("sample"),
   records: z.string().max(100_000).optional(), // surowy import (tekst/CSV)
   minScore: z.number().min(0).max(1).optional(),
 });
@@ -45,6 +46,22 @@ export async function POST(req: NextRequest) {
     if (corpus.length === 0) {
       return NextResponse.json({ error: "Import nie zawiera żadnych nazw." }, { status: 400 });
     }
+  } else if (source === "euipo") {
+    if (!isEuipoConfigured()) {
+      return NextResponse.json(
+        {
+          error: "EUIPO nie jest skonfigurowane (brak EUIPO_CLIENT_ID/SECRET).",
+          hint: "Zarejestruj aplikację na portalu deweloperskim EUIPO i ustaw klucze w środowisku z dostępem sieciowym.",
+        },
+        { status: 503 },
+      );
+    }
+    corpus = await searchEuipoByName(name);
+    sourceLabel = "EUIPO Trade Marks Search API";
+    license = "EUIPO Trade Marks Search API — zgodnie z warunkami EUIPO.";
+    verified = true;
+    sourceStatus = corpus.length ? "ok" : "partial";
+    sourceMessage = corpus.length ? "" : "Brak trafień lub API niedostępne — spróbuj innego źródła.";
   } else if (source === "epo") {
     if (!isEpoConfigured()) {
       return NextResponse.json(

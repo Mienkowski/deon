@@ -17,8 +17,11 @@ Dokument projektowy: [`ARCHITECTURE_AND_IMPLEMENTATION_PLAN.md`](./ARCHITECTURE_
   porównuje nazwę z korpusem znaków/firm (patenty pomocniczo) i zwraca ranking
   podobnych oznaczeń z pełnym wyjaśnieniem (który algorytm, wynik liczbowy,
   wspólne fragmenty, dopasowanie przez wariant vs identyczność literalna).
-  Korpus: wbudowany zbiór **przykładowy**, **import własnej listy** (CSV/tekst)
-  lub realne **EPO OPS** (gdy skonfigurowany klucz + egress).
+  Korpus: wbudowany zbiór **przykładowy**, **import własnej listy** (CSV/tekst),
+  realne **EUIPO Trade Marks Search API** (znaki towarowe — po ustawieniu klucza)
+  lub **EPO OPS** (patenty pomocniczo). Po skonfigurowaniu EUIPO również **główne
+  badanie** przeszukuje rejestr znaków automatycznie (status źródła „ok",
+  ocena ryzyka może wtedy osiągnąć A/B/C).
 - Formularz nazwy: typ, opis, branża, terytoria, towary/usługi.
 - **Sugestia klas nicejskich** z opisu (reguły; opcjonalnie LLM), edytowalna.
 - **Generator wariantów** nazwy (20 klas transformacji, wagi) — PL diakrytyki,
@@ -81,6 +84,8 @@ Wszystkie zmienne są opcjonalne (aplikacja działa w pełni lokalnie). Zob.
 | Zmienna | Domyślnie | Opis |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | – | Włącza opcjonalną warstwę LLM (semantyka, klasy). |
+| `EUIPO_CLIENT_ID` / `EUIPO_CLIENT_SECRET` | – | Realne EUIPO Trade Marks Search API (znaki towarowe). |
+| `EPO_OPS_CONSUMER_KEY` / `..._SECRET` | – | Realne EPO OPS (patenty, pomocniczo). |
 | `CONNECTOR_DOMAINS_RDAP_ENABLED` | `true` | Realne zapytania RDAP dla domen. |
 | `CONNECTOR_HTTP_TIMEOUT_MS` | `6000` | Timeout zapytań sieciowych. |
 | `RATE_LIMIT_SEARCH_PER_MINUTE` | `20` | Limit uruchomień badania / IP / min. |
