@@ -1,0 +1,1991 @@
+<title>Kalkulator ROI — wdrożenie Claude w Futur Lab</title>
+
+<style>
+/* ============================================================
+   TOKENY — motyw "świadectwo wzorcowania" (metrologia / lab)
+   Neutralne przechylone w chłodny błękit (zgodne z akcentem).
+   Palety serii zwalidowane skryptem validate_palette.js:
+     light @ #f6f7f9 — PASS (contrast WARN → etykiety bezpośrednie + tabele)
+     dark  @ #14181f — PASS (wszystkie testy)
+   ============================================================ */
+:root {
+  color-scheme: light;
+
+  --ground:        #f6f7f9;
+  --ground-sunk:   #eceff3;
+  --panel:         #ffffff;
+  --rule:          #d3d9e0;
+  --rule-strong:   #aeb7c2;
+
+  --ink:           #141a22;
+  --ink-2:         #4a5560;
+  --ink-3:         #77828e;
+
+  --accent:        #1c5cab;
+  --accent-soft:   rgba(28, 92, 171, 0.10);
+  --accent-line:   rgba(28, 92, 171, 0.30);
+
+  --good:          #15803d;
+  --warn:          #b45309;
+  --bad:           #b91c1c;
+  --good-soft:     rgba(21, 128, 61, 0.10);
+  --warn-soft:     rgba(180, 83, 9, 0.10);
+  --bad-soft:      rgba(185, 28, 28, 0.10);
+
+  --s1: #2a78d6;  /* badania i literatura */
+  --s2: #eb6834;  /* kod, dane, prototypy */
+  --s3: #1baf7a;  /* dokumentacja i granty */
+  --s4: #eda100;  /* eksperymenty i wnioski */
+
+  --font-data: ui-monospace, "SF Mono", SFMono-Regular, "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --font-prose: "Iowan Old Style", Charter, "Bitstream Charter", "Source Serif Pro", Georgia, serif;
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 16px;
+  --sp-5: 24px; --sp-6: 32px; --sp-7: 48px; --sp-8: 72px;
+  --measure: 68ch;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --ground:      #14181f;
+    --ground-sunk: #0e1116;
+    --panel:       #1a1f28;
+    --rule:        #2b323d;
+    --rule-strong: #414b58;
+    --ink:         #eef1f5;
+    --ink-2:       #a5b0bd;
+    --ink-3:       #78838f;
+    --accent:      #3987e5;
+    --accent-soft: rgba(57, 135, 229, 0.14);
+    --accent-line: rgba(57, 135, 229, 0.38);
+    --good:        #35b365;
+    --warn:        #d99320;
+    --bad:         #e15554;
+    --good-soft:   rgba(53, 179, 101, 0.14);
+    --warn-soft:   rgba(217, 147, 32, 0.14);
+    --bad-soft:    rgba(225, 85, 84, 0.14);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground:      #14181f;
+  --ground-sunk: #0e1116;
+  --panel:       #1a1f28;
+  --rule:        #2b323d;
+  --rule-strong: #414b58;
+  --ink:         #eef1f5;
+  --ink-2:       #a5b0bd;
+  --ink-3:       #78838f;
+  --accent:      #3987e5;
+  --accent-soft: rgba(57, 135, 229, 0.14);
+  --accent-line: rgba(57, 135, 229, 0.38);
+  --good:        #35b365;
+  --warn:        #d99320;
+  --bad:         #e15554;
+  --good-soft:   rgba(53, 179, 101, 0.14);
+  --warn-soft:   rgba(217, 147, 32, 0.14);
+  --bad-soft:    rgba(225, 85, 84, 0.14);
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --ground: #f6f7f9; --ground-sunk: #eceff3; --panel: #ffffff;
+  --rule: #d3d9e0; --rule-strong: #aeb7c2;
+  --ink: #141a22; --ink-2: #4a5560; --ink-3: #77828e;
+  --accent: #1c5cab; --accent-soft: rgba(28,92,171,.10); --accent-line: rgba(28,92,171,.30);
+  --good: #15803d; --warn: #b45309; --bad: #b91c1c;
+  --good-soft: rgba(21,128,61,.10); --warn-soft: rgba(180,83,9,.10); --bad-soft: rgba(185,28,28,.10);
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+}
+
+/* ============================================================ BAZA */
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+* { box-sizing: border-box; }
+
+.wrap { max-width: 1360px; margin: 0 auto; padding: 0 var(--sp-5); }
+@media (max-width: 640px) { .wrap { padding: 0 var(--sp-4); } }
+
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+
+.eyebrow {
+  font-family: var(--font-data);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 500;
+}
+
+h1, h2, h3, h4 { font-family: var(--font-prose); font-weight: 600; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(30px, 4.4vw, 50px); line-height: 1.08; letter-spacing: -0.015em; }
+h2 { font-size: clamp(23px, 2.6vw, 31px); line-height: 1.18; letter-spacing: -0.01em; }
+h3 { font-size: 19px; line-height: 1.3; }
+h4 { font-size: 16px; line-height: 1.35; font-family: var(--font-ui); font-weight: 650; }
+
+.num { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+
+/* ============================================================ MASZTOWNICA */
+.masthead { border-bottom: 1px solid var(--rule-strong); padding-top: var(--sp-6); }
+.masthead-grid { display: grid; gap: var(--sp-5); grid-template-columns: minmax(0, 1fr) auto; align-items: start; }
+@media (max-width: 860px) { .masthead-grid { grid-template-columns: 1fr; } }
+.masthead h1 { margin-top: var(--sp-3); max-width: 20ch; }
+.masthead .lede {
+  font-family: var(--font-prose); font-size: 18px; line-height: 1.55;
+  color: var(--ink-2); max-width: 58ch; margin-top: var(--sp-4);
+}
+.theme-toggle {
+  font-family: var(--font-data); font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+  background: transparent; border: 1px solid var(--rule-strong); color: var(--ink-2);
+  padding: 7px 12px; border-radius: 2px; cursor: pointer;
+}
+.theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+/* pasek metryczny — jak nagłówek świadectwa wzorcowania */
+.spec-strip {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  border-top: 1px solid var(--rule); margin-top: var(--sp-6);
+}
+.spec-strip div { padding: var(--sp-3) var(--sp-4) var(--sp-4); border-right: 1px solid var(--rule); }
+.spec-strip div:first-child { padding-left: 0; }
+.spec-strip div:last-child { border-right: 0; }
+.spec-strip dt { font-family: var(--font-data); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
+.spec-strip dd { margin: var(--sp-1) 0 0; font-family: var(--font-data); font-size: 14px; color: var(--ink); }
+
+/* ============================================================ NAWIGACJA */
+.tocbar {
+  position: sticky; top: 0; z-index: 40;
+  background: var(--ground); border-bottom: 1px solid var(--rule);
+  backdrop-filter: saturate(140%) blur(6px);
+}
+.tocbar ul { display: flex; gap: var(--sp-5); list-style: none; margin: 0; padding: 0; overflow-x: auto; }
+.tocbar a {
+  display: block; padding: 12px 0; font-family: var(--font-data); font-size: 11px;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2);
+  text-decoration: none; white-space: nowrap; border-bottom: 2px solid transparent;
+}
+.tocbar a:hover { color: var(--accent); border-bottom-color: var(--accent-line); }
+
+/* ============================================================ SEKCJE */
+section { padding: var(--sp-8) 0; border-bottom: 1px solid var(--rule); }
+.sec-head { margin-bottom: var(--sp-6); }
+.sec-head h2 { margin-top: var(--sp-2); }
+.sec-head p { font-family: var(--font-prose); color: var(--ink-2); max-width: var(--measure); margin: var(--sp-3) 0 0; font-size: 17px; }
+
+.prose { font-family: var(--font-prose); font-size: 17px; line-height: 1.68; max-width: var(--measure); }
+.prose p { margin: 0 0 var(--sp-4); }
+.prose ul, .prose ol { margin: 0 0 var(--sp-4); padding-left: 1.3em; }
+.prose li { margin-bottom: var(--sp-2); }
+.prose strong { font-weight: 650; }
+.prose code, code {
+  font-family: var(--font-data); font-size: .88em; background: var(--ground-sunk);
+  padding: 1px 5px; border-radius: 2px; border: 1px solid var(--rule);
+}
+.prose h3 { margin: var(--sp-6) 0 var(--sp-3); }
+.prose h4 { margin: var(--sp-5) 0 var(--sp-2); }
+
+/* ============================================================ WARSZTAT (kalkulator) */
+.workbench { display: grid; grid-template-columns: 372px minmax(0, 1fr); gap: var(--sp-6); align-items: start; }
+@media (max-width: 1080px) { .workbench { grid-template-columns: 1fr; } }
+
+.rail { position: sticky; top: 56px; max-height: calc(100vh - 76px); overflow-y: auto; padding-right: var(--sp-3); }
+@media (max-width: 1080px) { .rail { position: static; max-height: none; overflow: visible; padding-right: 0; } }
+.rail::-webkit-scrollbar { width: 8px; }
+.rail::-webkit-scrollbar-thumb { background: var(--rule-strong); border-radius: 4px; }
+
+details.module { border: 1px solid var(--rule); border-radius: 3px; margin-bottom: var(--sp-3); background: var(--panel); }
+details.module > summary {
+  cursor: pointer; list-style: none; padding: var(--sp-3) var(--sp-4);
+  display: flex; align-items: baseline; gap: var(--sp-3);
+  font-family: var(--font-data); font-size: 12px; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--ink); font-weight: 600;
+}
+details.module > summary::-webkit-details-marker { display: none; }
+details.module > summary::after { content: "+"; margin-left: auto; color: var(--ink-3); font-size: 15px; }
+details.module[open] > summary::after { content: "−"; }
+details.module[open] > summary { border-bottom: 1px solid var(--rule); }
+details.module > summary .tag {
+  font-size: 10px; color: var(--accent); border: 1px solid var(--accent-line);
+  padding: 1px 5px; border-radius: 2px; letter-spacing: .08em;
+}
+.module-body { padding: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-4); }
+.module-note { font-size: 12.5px; line-height: 1.5; color: var(--ink-2); font-family: var(--font-ui); margin: 0; }
+.module-note.flag { border-left: 2px solid var(--warn); background: var(--warn-soft); padding: var(--sp-2) var(--sp-3); }
+
+/* pole sterujące */
+.field label { display: block; font-size: 12.5px; font-weight: 600; color: var(--ink); margin-bottom: 2px; }
+.field .hint { display: block; font-size: 11.5px; color: var(--ink-3); line-height: 1.4; margin-bottom: var(--sp-2); }
+.field .row { display: grid; grid-template-columns: 1fr 86px; gap: var(--sp-3); align-items: center; }
+.field .row.solo { grid-template-columns: 1fr; }
+
+input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 20px; background: transparent; cursor: pointer; }
+input[type="range"]::-webkit-slider-runnable-track { height: 3px; background: var(--rule-strong); border-radius: 2px; }
+input[type="range"]::-moz-range-track { height: 3px; background: var(--rule-strong); border-radius: 2px; }
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 15px; height: 15px; margin-top: -6px;
+  background: var(--accent); border: 2px solid var(--panel); border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--accent);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 13px; height: 13px; background: var(--accent);
+  border: 2px solid var(--panel); border-radius: 50%; box-shadow: 0 0 0 1px var(--accent);
+}
+input[type="number"], select {
+  width: 100%; font-family: var(--font-data); font-variant-numeric: tabular-nums;
+  font-size: 13px; padding: 6px 8px; background: var(--ground);
+  border: 1px solid var(--rule-strong); border-radius: 2px; color: var(--ink);
+}
+select { font-family: var(--font-ui); }
+input[type="number"]:focus, select:focus { border-color: var(--accent); }
+
+.split-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); }
+.sum-check { font-family: var(--font-data); font-size: 11.5px; padding: var(--sp-2) var(--sp-3); border-radius: 2px; }
+.sum-check.ok { background: var(--good-soft); color: var(--good); }
+.sum-check.over { background: var(--bad-soft); color: var(--bad); }
+
+.rail-actions { display: flex; gap: var(--sp-2); margin-bottom: var(--sp-3); }
+.btn {
+  font-family: var(--font-data); font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+  padding: 8px 12px; border-radius: 2px; cursor: pointer;
+  border: 1px solid var(--rule-strong); background: var(--panel); color: var(--ink-2);
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { filter: brightness(1.1); color: #fff; }
+
+/* ============================================================ WYNIKI */
+.results { display: flex; flex-direction: column; gap: var(--sp-6); min-width: 0; }
+
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(206px, 1fr)); border: 1px solid var(--rule-strong); border-radius: 3px; overflow: hidden; }
+.kpi { padding: var(--sp-4); border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); background: var(--panel); }
+.kpi dt { font-family: var(--font-data); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
+.kpi dd {
+  margin: var(--sp-2) 0 0; font-family: var(--font-data); font-variant-numeric: tabular-nums;
+  font-size: clamp(19px, 1.8vw, 25px); line-height: 1.15; letter-spacing: -0.025em; white-space: nowrap;
+}
+.kpi .sub { display: block; font-size: 11.5px; color: var(--ink-2); margin-top: var(--sp-2); font-family: var(--font-ui); letter-spacing: 0; }
+.kpi .pill { display: inline-block; font-family: var(--font-data); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; padding: 2px 6px; border-radius: 2px; margin-top: var(--sp-2); }
+.pill.good { background: var(--good-soft); color: var(--good); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.bad  { background: var(--bad-soft);  color: var(--bad); }
+
+.figure { border: 1px solid var(--rule); border-radius: 3px; background: var(--panel); }
+.figure-head { padding: var(--sp-4) var(--sp-4) var(--sp-3); border-bottom: 1px solid var(--rule); display: flex; gap: var(--sp-4); align-items: flex-start; flex-wrap: wrap; }
+.figure-head .t { flex: 1 1 260px; min-width: 0; }
+.figure-head h3 { font-family: var(--font-ui); font-size: 15px; font-weight: 650; }
+.figure-head p { margin: var(--sp-2) 0 0; font-size: 13px; color: var(--ink-2); line-height: 1.5; max-width: 62ch; }
+.figure-body { padding: var(--sp-4); overflow-x: auto; }
+.figure-body svg { width: 100%; height: auto; min-width: 600px; }
+.figure-foot { padding: var(--sp-3) var(--sp-4); border-top: 1px solid var(--rule); font-size: 12px; color: var(--ink-3); font-family: var(--font-ui); }
+
+.legend { display: flex; flex-wrap: wrap; gap: var(--sp-4); font-family: var(--font-data); font-size: 11.5px; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.swatch { width: 11px; height: 11px; border-radius: 2px; flex: none; }
+.swatch.line { height: 3px; border-radius: 1px; }
+
+svg { display: block; max-width: 100%; }
+svg text { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+
+/* tabela danych */
+.tbl-toggle { font-family: var(--font-data); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; background: none; border: 0; color: var(--accent); cursor: pointer; padding: 0; }
+table.data { width: 100%; border-collapse: collapse; font-family: var(--font-data); font-variant-numeric: tabular-nums; font-size: 12.5px; }
+table.data th, table.data td { padding: 6px 10px; text-align: right; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+table.data th { color: var(--ink-3); font-weight: 500; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; border-bottom-color: var(--rule-strong); }
+table.data td:first-child, table.data th:first-child { text-align: left; }
+table.data tbody tr:hover { background: var(--ground-sunk); }
+.tbl-scroll { max-height: 340px; overflow: auto; }
+
+/* podpowiedź na wykresie */
+.tip {
+  position: fixed; z-index: 90; pointer-events: none; opacity: 0;
+  background: var(--panel); border: 1px solid var(--rule-strong); border-radius: 3px;
+  padding: var(--sp-2) var(--sp-3); font-family: var(--font-data); font-size: 12px;
+  box-shadow: 0 6px 22px rgba(0,0,0,.16); transition: opacity .1s linear; max-width: 260px;
+}
+.tip .tip-t { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 3px; }
+.tip .tip-r { display: flex; justify-content: space-between; gap: var(--sp-4); }
+.tip .tip-r em { font-style: normal; color: var(--ink-2); }
+
+/* ============================================================ ELEMENTY TREŚCI */
+.callout { border: 1px solid var(--rule-strong); border-left: 3px solid var(--accent); border-radius: 3px; padding: var(--sp-4) var(--sp-5); background: var(--panel); max-width: var(--measure); margin: var(--sp-5) 0; }
+.callout.warn { border-left-color: var(--warn); }
+.callout.bad  { border-left-color: var(--bad); }
+.callout .eyebrow { margin-bottom: var(--sp-2); display: block; }
+.callout p:last-child { margin-bottom: 0; }
+.callout p { font-family: var(--font-prose); font-size: 16px; line-height: 1.6; margin: 0 0 var(--sp-3); }
+
+/* oś czasu protokołu — numeracja koduje realną kolejność faz */
+.phases { list-style: none; padding: 0; margin: var(--sp-5) 0 0; border-top: 1px solid var(--rule); }
+.phases li { display: grid; grid-template-columns: 92px minmax(0,1fr); gap: var(--sp-5); padding: var(--sp-5) 0; border-bottom: 1px solid var(--rule); }
+@media (max-width: 700px) { .phases li { grid-template-columns: 1fr; gap: var(--sp-2); } }
+.phases .when { font-family: var(--font-data); font-size: 12px; color: var(--accent); letter-spacing: .04em; padding-top: 3px; }
+.phases h4 { margin-bottom: var(--sp-2); }
+.phases p { margin: 0 0 var(--sp-3); font-family: var(--font-prose); font-size: 16px; line-height: 1.6; color: var(--ink-2); max-width: 62ch; }
+.phases ul { margin: 0; padding-left: 1.2em; font-size: 14.5px; color: var(--ink-2); }
+.phases li li { display: list-item; padding: 0; border: 0; margin-bottom: 5px; }
+
+.grid-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(275px, 1fr)); gap: var(--sp-4); margin-top: var(--sp-5); }
+.card { border: 1px solid var(--rule); border-radius: 3px; padding: var(--sp-4) var(--sp-5); background: var(--panel); }
+.card h4 { margin-bottom: var(--sp-2); }
+.card p { margin: 0; font-size: 14.5px; line-height: 1.6; color: var(--ink-2); }
+.card p + p { margin-top: var(--sp-3); }
+.card .eyebrow { display: block; margin-bottom: var(--sp-2); }
+
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 3px; margin: var(--sp-5) 0; background: var(--panel); }
+table.doc { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 620px; }
+table.doc th, table.doc td { padding: 11px 14px; text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; line-height: 1.5; }
+table.doc th { font-family: var(--font-data); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); font-weight: 500; border-bottom-color: var(--rule-strong); }
+table.doc tbody tr:last-child td { border-bottom: 0; }
+table.doc td.n { font-family: var(--font-data); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.checklist { list-style: none; padding: 0; margin: var(--sp-4) 0 0; max-width: var(--measure); }
+.checklist li { display: grid; grid-template-columns: 20px 1fr; gap: var(--sp-3); padding: var(--sp-3) 0; border-bottom: 1px solid var(--rule); font-size: 15px; line-height: 1.55; }
+.checklist li::before { content: "☐"; font-family: var(--font-data); color: var(--accent); font-size: 15px; }
+.checklist li b { font-weight: 650; }
+
+footer { padding: var(--sp-7) 0 var(--sp-8); }
+footer .prose { font-size: 14.5px; color: var(--ink-2); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+</style>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="masthead-grid">
+      <div>
+        <span class="eyebrow">Narzędzie pomiarowe · v1.0 · lipiec 2026</span>
+        <h1>Kalkulator ROI wdrożenia Claude w&nbsp;Futur&nbsp;Lab</h1>
+        <p class="lede">
+          Model finansowy i protokół pomiarowy dla laboratorium&nbsp;B+R liczącego 5–15 osób.
+          Odpowiada na trzy pytania: <em>czy wdrażać</em>, <em>jak obronić budżet</em>
+          i <em>jak mierzyć efekt po uruchomieniu</em> — z jawnie wyliczoną niepewnością,
+          a nie pojedynczą liczbą.
+        </p>
+      </div>
+      <button class="theme-toggle" id="themeBtn" type="button">Motyw: auto</button>
+    </div>
+
+    <dl class="spec-strip">
+      <div><dt>Jednostka</dt><dd>Futur Lab — B+R</dd></div>
+      <div><dt>Waluta</dt><dd>PLN</dd></div>
+      <div><dt>Metoda</dt><dd>DCF + Monte Carlo</dd></div>
+      <div><dt>Plan pomiaru</dt><dd>Stepped-wedge</dd></div>
+      <div><dt>Iteracje symulacji</dt><dd class="num" id="mcCountLabel">4 000</dd></div>
+    </dl>
+  </div>
+</header>
+
+<nav class="tocbar" aria-label="Spis treści">
+  <div class="wrap">
+    <ul>
+      <li><a href="#kalkulator">Kalkulator</a></li>
+      <li><a href="#interpretacja">Jak czytać wynik</a></li>
+      <li><a href="#protokol">Protokół pomiaru</a></li>
+      <li><a href="#pulapki">Pułapki</a></li>
+      <li><a href="#ryzyka">Ryzyka pozafinansowe</a></li>
+      <li><a href="#checklisty">Checklisty</a></li>
+      <li><a href="#zalozenia">Założenia i źródła</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+
+<!-- ================================================================ KALKULATOR -->
+<section id="kalkulator">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">Moduł 1</span>
+      <h2>Model finansowy</h2>
+      <p>
+        Wszystkie wartości domyślne są <strong>założeniami wstępnymi</strong>, nie pomiarami.
+        Służą do uruchomienia rozmowy i wskazania, które parametry warto zmierzyć w pierwszej kolejności —
+        wykres tornado poniżej powie ci, które to są.
+      </p>
+    </div>
+
+    <div class="workbench">
+
+      <!-- ---------------------------------------------------- SZYNA STEROWANIA -->
+      <aside class="rail" aria-label="Parametry modelu">
+        <div class="rail-actions">
+          <button class="btn primary" id="btnReset" type="button">Reset</button>
+          <button class="btn" id="btnPess" type="button">Ostrożny</button>
+          <button class="btn" id="btnOpt" type="button">Ambitny</button>
+        </div>
+
+        <!-- A. ZESPÓŁ -->
+        <details class="module" open>
+          <summary>A · Zespół i baza kosztowa</summary>
+          <div class="module-body">
+            <div class="field">
+              <label for="headcount">Wielkość zespołu (osoby)</label>
+              <span class="hint">Osoby wykonujące pracę merytoryczną, bez administracji.</span>
+              <div class="row"><input type="range" id="headcount_r" min="3" max="30" step="1"><input type="number" id="headcount" min="3" max="30" step="1"></div>
+            </div>
+            <div class="field">
+              <label for="hoursMonth">Godziny pracy / osobę / miesiąc</label>
+              <span class="hint">8&nbsp;h × ~19 dni roboczych netto po urlopach.</span>
+              <div class="row"><input type="range" id="hoursMonth_r" min="100" max="180" step="2"><input type="number" id="hoursMonth" min="100" max="180" step="2"></div>
+            </div>
+            <div class="field">
+              <label for="hourlyCost">Pełny koszt godziny (PLN)</label>
+              <span class="hint">Wynagrodzenie + składki + narzut (biuro, sprzęt, admin). <strong>Nie</strong> sama pensja brutto.</span>
+              <div class="row"><input type="range" id="hourlyCost_r" min="60" max="350" step="5"><input type="number" id="hourlyCost" min="60" max="350" step="5"></div>
+            </div>
+          </div>
+        </details>
+
+        <!-- B. PROCESY -->
+        <details class="module" open>
+          <summary>B · Procesy B+R <span class="tag">4 strumienie</span></summary>
+          <div class="module-body">
+            <p class="module-note">
+              Dla każdego procesu: <strong>udział w czasie pracy</strong> zespołu,
+              <strong>surowa oszczędność</strong> zmierzona na zadaniu
+              oraz <strong>narzut weryfikacji</strong> — część odzyskanego czasu, która wraca
+              na sprawdzanie i poprawianie wyniku modelu.
+            </p>
+            <div id="processFields"></div>
+            <div class="sum-check" id="shareSum"></div>
+          </div>
+        </details>
+
+        <!-- C. ADOPCJA -->
+        <details class="module" open>
+          <summary>C · Adopcja i trwałość efektu</summary>
+          <div class="module-body">
+            <div class="field">
+              <label for="adoption">Pułap adopcji (% zespołu)</label>
+              <span class="hint">Odsetek osób realnie używających narzędzia w codziennej pracy — nie tych z przydzieloną licencją.</span>
+              <div class="row"><input type="range" id="adoption_r" min="10" max="100" step="5"><input type="number" id="adoption" min="10" max="100" step="5"></div>
+            </div>
+            <div class="field">
+              <label for="rampMonths">Czas dojścia do pułapu (miesiące)</label>
+              <span class="hint">Krzywa nauki i przebudowa nawyków pracy.</span>
+              <div class="row"><input type="range" id="rampMonths_r" min="1" max="12" step="1"><input type="number" id="rampMonths" min="1" max="12" step="1"></div>
+            </div>
+            <div class="field">
+              <label for="novelty">Dyskonto efektu nowości (%)</label>
+              <span class="hint">O ile obniżasz wynik z pilotażu, bo część efektu to entuzjazm i dobór najłatwiejszych zadań. Zerowe dyskonto zakłada, że pomiar był idealny.</span>
+              <div class="row"><input type="range" id="novelty_r" min="0" max="50" step="5"><input type="number" id="novelty" min="0" max="50" step="5"></div>
+            </div>
+          </div>
+        </details>
+
+        <!-- D. REALIZACJA -->
+        <details class="module" open>
+          <summary>D · Realizacja wartości <span class="tag">kluczowe</span></summary>
+          <div class="module-body">
+            <p class="module-note flag">
+              To jest parametr, który przesądza o wyniku. Zaoszczędzona godzina staje się
+              pieniądzem tylko wtedy, gdy zostanie przeniesiona na pracę o wartości —
+              albo pozwoli uniknąć kosztu. Reszta rozpłynie się w harmonogramie.
+            </p>
+            <div class="field">
+              <label for="realization">Współczynnik realizacji (%)</label>
+              <span class="hint">Jaka część odzyskanych godzin zamienia się w mierzalną wartość. Patrz tabela kanałów pod kalkulatorem.</span>
+              <div class="row"><input type="range" id="realization_r" min="0" max="100" step="5"><input type="number" id="realization" min="0" max="100" step="5"></div>
+            </div>
+          </div>
+        </details>
+
+        <!-- E. KOSZTY -->
+        <details class="module">
+          <summary>E · Koszty wdrożenia</summary>
+          <div class="module-body">
+            <div class="split-2">
+              <div class="field">
+                <label for="seatsPrem">Stanowiska Premium</label>
+                <span class="hint">Pełny dostęp</span>
+                <div class="row solo"><input type="number" id="seatsPrem" min="0" max="40" step="1"></div>
+              </div>
+              <div class="field">
+                <label for="seatsStd">Stanowiska Standard</label>
+                <span class="hint">Podstawowy</span>
+                <div class="row solo"><input type="number" id="seatsStd" min="0" max="40" step="1"></div>
+              </div>
+            </div>
+            <div class="split-2">
+              <div class="field">
+                <label for="pricePrem">Cena Premium (USD/mies.)</label>
+                <div class="row solo"><input type="number" id="pricePrem" min="0" step="5"></div>
+              </div>
+              <div class="field">
+                <label for="priceStd">Cena Standard (USD/mies.)</label>
+                <div class="row solo"><input type="number" id="priceStd" min="0" step="5"></div>
+              </div>
+            </div>
+            <div class="field">
+              <label for="fx">Kurs USD/PLN</label>
+              <div class="row"><input type="range" id="fx_r" min="3" max="5" step="0.02"><input type="number" id="fx" min="3" max="5" step="0.02"></div>
+            </div>
+            <p class="module-note flag">
+              Ceny stanowisk zweryfikuj przed użyciem modelu — sprawdź aktualny cennik
+              i warunki umowy dla swojej wielkości zespołu. Plan zespołowy zwykle wymaga
+              minimum 5 stanowisk, a rozliczenie roczne obniża cenę względem miesięcznego.
+            </p>
+            <div class="field">
+              <label for="apiCost">Zużycie API / dodatkowe (PLN/mies.)</label>
+              <span class="hint">Automatyzacje, integracje, praca wsadowa poza subskrypcją.</span>
+              <div class="row"><input type="range" id="apiCost_r" min="0" max="8000" step="100"><input type="number" id="apiCost" min="0" max="8000" step="100"></div>
+            </div>
+            <div class="field">
+              <label for="championHrs">Czas opiekuna wdrożenia (h/mies.)</label>
+              <span class="hint">Prompty, wzorce, szkolenia wewnętrzne, wsparcie. Po zakończeniu rozruchu spada do 40%.</span>
+              <div class="row"><input type="range" id="championHrs_r" min="0" max="60" step="2"><input type="number" id="championHrs" min="0" max="60" step="2"></div>
+            </div>
+            <div class="field">
+              <label for="onboardHrs">Wdrożenie: godziny na osobę</label>
+              <span class="hint">Szkolenie + nauka własna, koszt jednorazowy.</span>
+              <div class="row"><input type="range" id="onboardHrs_r" min="0" max="40" step="1"><input type="number" id="onboardHrs" min="0" max="40" step="1"></div>
+            </div>
+            <div class="field">
+              <label for="setupCost">Integracje i konfiguracja (PLN, jednorazowo)</label>
+              <div class="row"><input type="range" id="setupCost_r" min="0" max="60000" step="1000"><input type="number" id="setupCost" min="0" max="60000" step="1000"></div>
+            </div>
+            <div class="field">
+              <label for="legalCost">Bezpieczeństwo, RODO, umowy IP (PLN, jednorazowo)</label>
+              <span class="hint">Analiza ryzyka, DPIA, aneksy do umów grantowych i NDA z klientami.</span>
+              <div class="row"><input type="range" id="legalCost_r" min="0" max="60000" step="1000"><input type="number" id="legalCost" min="0" max="60000" step="1000"></div>
+            </div>
+            <div class="field">
+              <label for="measureCost">Koszt samego pomiaru (PLN, jednorazowo)</label>
+              <span class="hint">Instrumentacja, prowadzenie eksperymentu, analiza. Pomiar też kosztuje — jeśli go pominiesz, nie masz z czym pójść do zarządu.</span>
+              <div class="row"><input type="range" id="measureCost_r" min="0" max="60000" step="1000"><input type="number" id="measureCost" min="0" max="60000" step="1000"></div>
+            </div>
+          </div>
+        </details>
+
+        <!-- F. FINANSE -->
+        <details class="module">
+          <summary>F · Parametry finansowe</summary>
+          <div class="module-body">
+            <div class="field">
+              <label for="horizon">Horyzont analizy (miesiące)</label>
+              <div class="row"><input type="range" id="horizon_r" min="12" max="60" step="6"><input type="number" id="horizon" min="12" max="60" step="6"></div>
+            </div>
+            <div class="field">
+              <label for="discount">Stopa dyskontowa (% rocznie)</label>
+              <span class="hint">Koszt kapitału. Dla małej jednostki B+R zwykle 8–15%.</span>
+              <div class="row"><input type="range" id="discount_r" min="0" max="30" step="1"><input type="number" id="discount" min="0" max="30" step="1"></div>
+            </div>
+            <div class="field">
+              <label for="spread">Szerokość rozrzutu w symulacji (%)</label>
+              <span class="hint">Względna niepewność parametrów efektu w Monte Carlo. Im słabszy pomiar, tym szerzej.</span>
+              <div class="row"><input type="range" id="spread_r" min="10" max="70" step="5"><input type="number" id="spread" min="10" max="70" step="5"></div>
+            </div>
+          </div>
+        </details>
+      </aside>
+
+      <!-- ---------------------------------------------------- WYNIKI -->
+      <div class="results">
+
+        <dl class="kpi-grid" id="kpis"></dl>
+
+        <!-- WYKRES 1: przepływ skumulowany -->
+        <figure class="figure" style="margin:0">
+          <div class="figure-head">
+            <div class="t">
+              <h3>Skumulowany zdyskontowany przepływ netto</h3>
+              <p>Mediana z symulacji z pasmem P10–P90. Punkt przecięcia z zerem to moment zwrotu. Szerokość pasma jest informacją: wąskie pasmo nad zerem to decyzja łatwa, szerokie pasmo obejmujące zero oznacza, że model nie rozstrzyga.</p>
+            </div>
+            <button class="tbl-toggle" data-tbl="tblCash" type="button">Pokaż tabelę</button>
+          </div>
+          <div class="figure-body"><div id="chartCash"></div></div>
+          <div id="tblCash" hidden></div>
+          <div class="figure-foot">
+            <div class="legend">
+              <span><i class="swatch line" style="background:var(--accent)"></i> Mediana (P50)</span>
+              <span><i class="swatch" style="background:var(--accent-soft);border:1px solid var(--accent-line)"></i> Przedział P10–P90</span>
+              <span><i class="swatch line" style="background:var(--ink-3)"></i> Próg zwrotu</span>
+            </div>
+          </div>
+        </figure>
+
+        <!-- WYKRES 2: tornado -->
+        <figure class="figure" style="margin:0">
+          <div class="figure-head">
+            <div class="t">
+              <h3>Wrażliwość NPV na parametry (tornado)</h3>
+              <p>Zmiana wartości bieżącej netto przy przesunięciu każdego parametru w dół i w górę zakresu. <strong>Parametry na górze mierz w pierwszej kolejności</strong> — reszta nie zmieni decyzji.</p>
+            </div>
+            <button class="tbl-toggle" data-tbl="tblTorn" type="button">Pokaż tabelę</button>
+          </div>
+          <div class="figure-body"><div id="chartTornado"></div></div>
+          <div id="tblTorn" hidden></div>
+          <div class="figure-foot">
+            <div class="legend">
+              <span><i class="swatch" style="background:var(--s1)"></i> Wartość niższa niż bazowa</span>
+              <span><i class="swatch" style="background:var(--bad)"></i> Wartość wyższa niż bazowa</span>
+            </div>
+          </div>
+        </figure>
+
+        <!-- WYKRES 3: rozkład Monte Carlo -->
+        <figure class="figure" style="margin:0">
+          <div class="figure-head">
+            <div class="t">
+              <h3>Rozkład NPV — symulacja Monte Carlo</h3>
+              <p>Losowanie parametrów efektu z rozkładów trójkątnych wokół wartości bazowych. Interesuje cię nie środek rozkładu, tylko jego lewy ogon: jak zły jest zły scenariusz i jak często występuje.</p>
+            </div>
+            <button class="tbl-toggle" data-tbl="tblMc" type="button">Pokaż tabelę</button>
+          </div>
+          <div class="figure-body"><div id="chartMc"></div></div>
+          <div id="tblMc" hidden></div>
+          <div class="figure-foot">
+            <div class="legend">
+              <span><i class="swatch" style="background:var(--accent)"></i> NPV dodatnie</span>
+              <span id="legMcNeg" hidden><i class="swatch" style="background:var(--bad)"></i> NPV ujemne</span>
+              <span><i class="swatch line" style="background:var(--ink-3)"></i> P10 · P50 · P90</span>
+            </div>
+            <p id="mcNote" style="margin:var(--sp-2) 0 0;font-size:12px"></p>
+          </div>
+        </figure>
+
+        <!-- WYKRES 4: wartość wg procesu -->
+        <figure class="figure" style="margin:0">
+          <div class="figure-head">
+            <div class="t">
+              <h3>Roczna wartość netto wg procesu</h3>
+              <p>Wartość po uwzględnieniu narzutu weryfikacji, dyskonta nowości, adopcji i współczynnika realizacji — w stanie ustabilizowanym.</p>
+            </div>
+            <button class="tbl-toggle" data-tbl="tblProc" type="button">Pokaż tabelę</button>
+          </div>
+          <div class="figure-body"><div id="chartProc"></div></div>
+          <div id="tblProc" hidden></div>
+          <div class="figure-foot">Etykiety podane bezpośrednio na słupkach — kolor nie jest jedynym nośnikiem informacji.</div>
+        </figure>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ INTERPRETACJA -->
+<section id="interpretacja">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">Moduł 2</span>
+      <h2>Jak czytać ten wynik</h2>
+      <p>Cztery rzeczy, które decydują o tym, czy liczba z kalkulatora cokolwiek znaczy.</p>
+    </div>
+
+    <div class="prose">
+      <h3>1. Współczynnik realizacji jest ważniejszy niż oszczędność czasu</h3>
+      <p>
+        Najczęstszy błąd w uzasadnieniach wdrożeń AI wygląda tak: „narzędzie skraca pisanie
+        raportu o 40%, zespół pisze raporty 20% czasu, więc odzyskujemy 8% zdolności
+        produkcyjnej — mnożymy przez koszt pracy i mamy oszczędność”. To nie jest oszczędność.
+        To <strong>zwolniona zdolność produkcyjna</strong>, a to zupełnie inna kategoria.
+      </p>
+      <p>
+        Godzina zaoszczędzona zamienia się w pieniądz tylko przez jeden z trzech kanałów.
+        Ustaw suwak realizacji na podstawie tego, który z nich faktycznie u ciebie działa —
+        a nie tego, który brzmi najlepiej w prezentacji.
+      </p>
+    </div>
+
+    <div class="tbl-wrap">
+      <table class="doc">
+        <thead>
+          <tr><th>Kanał</th><th>Warunek, który musi być spełniony</th><th>Realizacja</th><th>Jak zweryfikować</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><b>Uniknięcie kosztu</b></td>
+            <td>Był realny plan zatrudnienia lub zlecenia na zewnątrz, z którego rezygnujesz.</td>
+            <td class="n">90–100%</td>
+            <td>Pokaż budżet lub ofertę podwykonawcy, z której zrezygnowano. Bez tego kanał nie istnieje.</td>
+          </tr>
+          <tr>
+            <td><b>Wzrost przepustowości</b></td>
+            <td>Istnieje kolejka wartościowej pracy, której nie robiliście z braku mocy — i ta praca zostaje podjęta.</td>
+            <td class="n">50–80%</td>
+            <td>Policz zamknięte projekty / eksperymenty / wnioski przed i po. Jeśli liczba nie rośnie, kanał nie działa.</td>
+          </tr>
+          <tr>
+            <td><b>Skrócenie cyklu</b></td>
+            <td>Wcześniejszy wynik ma wartość sam w sobie: szybsze wejście na rynek, dotrzymany termin naboru grantowego, wcześniejsze odcięcie ślepej uliczki.</td>
+            <td class="n">zależne od projektu</td>
+            <td>Wyceń osobno jako opcję, nie przez koszt godziny. Kalkulator tego nie modeluje — dolicz ręcznie i uzasadnij.</td>
+          </tr>
+          <tr>
+            <td><b>Rozproszenie (prawo Parkinsona)</b></td>
+            <td>Brak popytu na dodatkową moc. Praca rozszerza się, by wypełnić dostępny czas.</td>
+            <td class="n">0%</td>
+            <td>Domyślny stan, jeśli nie potrafisz wskazać żadnego z powyższych. To nie jest cynizm, tylko wartość bazowa.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="prose">
+      <p>
+        Praktyczna wskazówka: jeśli nie umiesz wskazać konkretnego kanału i dowodu,
+        ustaw realizację na <strong>25%</strong> i sprawdź, czy wdrożenie nadal się broni.
+        Jeśli tak — masz solidny argument. Jeśli nie — masz wynik zależny od założenia,
+        którego nie potrafisz obronić, i to też jest cenna informacja.
+      </p>
+
+      <h3>2. Czytaj lewy ogon rozkładu, nie środek</h3>
+      <p>
+        Mediana NPV to najmniej użyteczna liczba w tym modelu. Decyzja zależy od tego,
+        jak wygląda scenariusz P10 — bo to on się zrealizuje, jeśli wszystko pójdzie
+        przeciętnie źle, a nie katastrofalnie. Wynik, w którym P50 jest wysoki,
+        ale P10 głęboko ujemny, to nie jest „dobra inwestycja z ryzykiem” —
+        to zakład, który trzeba świadomie zaakceptować.
+      </p>
+
+      <h3>3. Próg opłacalności mówi więcej niż sam NPV</h3>
+      <p>
+        Kalkulator wylicza minimalny współczynnik realizacji, przy którym NPV wynosi zero.
+        Ta liczba jest odporna na twoje założenia o wielkości efektu — i to ją warto
+        pokazać zarządowi. Zdanie „to się zwraca, jeśli choć jedna czwarta odzyskanych godzin
+        trafi na pracę, na którą i tak brakowało nam rąk” jest znacznie mocniejsze
+        niż „NPV wynosi 214 tysięcy”.
+      </p>
+
+      <h3>4. Model liczy przepływy, nie kompetencje</h3>
+      <p>
+        Poza modelem zostają rzeczy realne, ale niepoliczalne bez arbitralnych założeń:
+        wpływ na rozwój juniorów, ryzyko utraty wiedzy proceduralnej, zmiana atrakcyjności
+        laboratorium jako pracodawcy, jakość wyników na dłuższą metę. Zebrałem je
+        w sekcji <a href="#ryzyka">Ryzyka pozafinansowe</a> — nie dlatego, że są mniej ważne,
+        tylko dlatego, że wciśnięcie ich w arkusz zamienia analizę w fikcję.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ PROTOKÓŁ -->
+<section id="protokol">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">Moduł 3</span>
+      <h2>Protokół pomiarowy</h2>
+      <p>
+        Wybraliście pomiar z linią bazową i grupą kontrolną. To właściwa decyzja — ale przy
+        zespole 5–15 osób standardowy projekt równoległy (połowa zespołu z narzędziem, połowa bez)
+        <strong>nie ma szans wykryć efektu</strong>. Poniżej projekt, który go ma.
+      </p>
+    </div>
+
+    <div class="callout bad">
+      <span class="eyebrow">Rachunek mocy statystycznej</span>
+      <p>
+        Aby wykryć 20-procentowe skrócenie czasu zadania przy typowym rozrzucie czasów pracy
+        umysłowej (odchylenie na skali logarytmicznej ≈&nbsp;0,6), projekt równoległy wymaga
+        około <strong>115 zadań na ramię</strong>. Po uwzględnieniu grupowania zadań w obrębie
+        osoby (efekt projektowy ≈&nbsp;2 przy 10&nbsp;zadaniach na osobę) rośnie to do
+        <strong>~240 zadań na ramię</strong> — czyli około 48 zadań na osobę przy pięciu osobach w grupie.
+        Nierealne w 8 tygodni.
+      </p>
+      <p>
+        Ten sam efekt w projekcie <strong>wewnątrzosobowym</strong> — gdzie każdy jest własną kontrolą,
+        a wariancja międzyosobowa znika z mianownika — wymaga około <strong>35–50 sparowanych obserwacji</strong>.
+        Czyli 10 osób × 4–5 zadań. To jest wykonalne.
+      </p>
+    </div>
+
+    <div class="prose">
+      <h3>Rekomendowany projekt: stepped-wedge z analizą na poziomie zadania</h3>
+      <p>
+        Wszyscy dostają narzędzie, ale <strong>w losowej kolejności</strong>, falami.
+        Ten projekt daje jednocześnie kontrast wewnątrzosobowy (przed vs&nbsp;po dla każdej osoby)
+        i kontrolę równoczesną (osoby jeszcze bez dostępu absorbują trendy sezonowe i fazę projektu).
+        Jest też politycznie do obrony: nikt nie zostaje trwale pozbawiony narzędzia,
+        które dostają koledzy.
+      </p>
+      <p>
+        <strong>Jednostką analizy jest zadanie, nie osoba.</strong> Model: regresja mieszana na
+        logarytmie czasu zadania, ze stałym efektem dostępu do narzędzia, efektem losowym osoby,
+        efektem stałym typu zadania i efektem stałym tygodnia kalendarzowego. Estymator to
+        różnica w różnicach — porównujesz zmianę u osób, które dostały dostęp, ze zmianą
+        u osób, które jeszcze go nie dostały w tym samym okresie.
+      </p>
+    </div>
+
+    <ol class="phases">
+      <li>
+        <span class="when">Faza 0<br>tyg. −6 → 0</span>
+        <div>
+          <h4>Linia bazowa i instrumentacja</h4>
+          <p>
+            Bez tej fazy cała reszta jest bezwartościowa. Nie da się jej odtworzyć wstecz,
+            a pamięć zespołu o tym, „ile to zajmowało wcześniej”, jest systematycznie zawyżona.
+          </p>
+          <ul>
+            <li>Zdefiniuj <b>4–6 powtarzalnych typów zadań</b> z jasnym początkiem i końcem: przegląd literatury do tematu, skrypt analityczny, rozdział raportu, protokół eksperymentu, wniosek grantowy, przegląd kodu.</li>
+            <li>Ustal <b>definicję ukończenia</b> dla każdego typu — inaczej „szybciej” będzie znaczyło „gorzej”, a nikt tego nie zauważy.</li>
+            <li>Uruchom rejestrację czasu na poziomie zadania. Prosty formularz przy zamknięciu zadania, nie ciągły tracking. Minimum 4 zadania na osobę.</li>
+            <li>Zbierz <b>metryki jakości</b>: liczba iteracji do akceptacji, uwagi recenzenta, poprawki po przeglądzie.</li>
+            <li>Ankieta wyjściowa: samoocena czasu (posłuży do zmierzenia, o ile zespół się myli — to sama w sobie użyteczna kalibracja).</li>
+          </ul>
+        </div>
+      </li>
+      <li>
+        <span class="when">Faza 1<br>tyg. 1 → 4</span>
+        <div>
+          <h4>Fala 1 — losowa jedna trzecia zespołu</h4>
+          <p>
+            Losowanie, nie zgłoszenia. Ochotnicy to najbardziej entuzjastyczna i najbardziej
+            techniczna część zespołu — wynik zmierzony na nich nie uogólnia się na resztę.
+          </p>
+          <ul>
+            <li>Wspólne 2-godzinne wdrożenie plus dostęp do biblioteki promptów.</li>
+            <li>Rejestracja czasu i jakości bez zmian, w obu grupach.</li>
+            <li><b>Nie</b> analizuj wyników po dwóch tygodniach. Zobaczysz efekt nowości i zinterpretujesz go jako efekt narzędzia.</li>
+          </ul>
+        </div>
+      </li>
+      <li>
+        <span class="when">Faza 2<br>tyg. 5 → 8</span>
+        <div>
+          <h4>Fala 2 — kolejna trzecia</h4>
+          <p>
+            Teraz masz trzy stany naraz: osoby po 8 tygodniach użycia, osoby świeżo po starcie
+            i osoby wciąż bez dostępu. Ten układ pozwala oddzielić efekt trwały od efektu nowości —
+            bez niego są nierozróżnialne.
+          </p>
+          <ul>
+            <li>Pierwsza analiza pośrednia — wyłącznie po to, by wyłapać błędy w zbieraniu danych.</li>
+            <li>Zbierz <b>przypadki, w których narzędzie zawiodło</b>. Są warte więcej niż sukcesy: pokazują granicę stosowalności i realny narzut weryfikacji.</li>
+          </ul>
+        </div>
+      </li>
+      <li>
+        <span class="when">Faza 3<br>tyg. 9 → 12</span>
+        <div>
+          <h4>Fala 3, analiza i decyzja</h4>
+          <p>
+            Cały zespół ma dostęp. Osoby z fali 1 mają za sobą 12 tygodni, więc masz pomiar
+            efektu w stanie ustabilizowanym, po opadnięciu entuzjazmu.
+          </p>
+          <ul>
+            <li>Dopasuj model mieszany, wylicz przedziały ufności — <b>nie same wartości punktowe</b>.</li>
+            <li>Podstaw zmierzone wartości do kalkulatora, zwęź rozrzut w symulacji do rzeczywistej niepewności estymatora.</li>
+            <li>Zestaw prognozę z fazy 0 z wynikiem. Rozbieżność jest kalibracją twojego osądu na kolejne wdrożenia.</li>
+            <li>Podejmij decyzję: skalować, ograniczyć do procesów, które faktycznie działają, albo wycofać.</li>
+          </ul>
+        </div>
+      </li>
+    </ol>
+
+    <div class="prose">
+      <h3>Zestaw metryk</h3>
+    </div>
+
+    <div class="tbl-wrap">
+      <table class="doc">
+        <thead><tr><th>Warstwa</th><th>Metryka</th><th>Po co</th></tr></thead>
+        <tbody>
+          <tr><td><b>Główna</b></td><td>Mediana czasu ukończenia zadania, wg typu zadania</td><td>Jedyna metryka wchodząca do modelu finansowego. Mediana, nie średnia — rozkłady czasów mają ciężki prawy ogon.</td></tr>
+          <tr><td><b>Uzupełniająca</b></td><td>Przepustowość: zamknięte zadania na osobę na tydzień</td><td>Weryfikuje kanał realizacji. Jeśli czas na zadanie spada, a przepustowość stoi w miejscu, odzyskane godziny nie trafiają nigdzie.</td></tr>
+          <tr><td><b>Uzupełniająca</b></td><td>Czas od pytania badawczego do pierwszego wyniku</td><td>Bezpośredni pomiar skrócenia cyklu — kanału, którego kalkulator nie wycenia.</td></tr>
+          <tr><td><b>Zabezpieczająca</b></td><td>Wskaźnik poprawek i liczba iteracji do akceptacji</td><td>Wykrywa przerzucenie kosztu z wykonawcy na recenzenta. Zadanie „szybsze” o 30%, które wymaga dwóch dodatkowych rund przeglądu, jest wolniejsze.</td></tr>
+          <tr><td><b>Zabezpieczająca</b></td><td>Błędy merytoryczne wykryte po zamknięciu zadania</td><td>Najważniejsza metryka w B+R. Błąd, który przeszedł do raportu dla klienta lub do wniosku grantowego, kosztuje wielokrotnie więcej niż zaoszczędzone godziny.</td></tr>
+          <tr><td><b>Zabezpieczająca</b></td><td>Udział zadań porzuconych z użyciem narzędzia</td><td>Wyłapuje przypadki, w których narzędzie prowadzi w ślepą uliczkę — te zadania znikają z próby i sztucznie zawyżają wynik.</td></tr>
+          <tr><td><b>Kontekstowa</b></td><td>Aktywne użycie tygodniowo na osobę</td><td>Weryfikuje pułap adopcji, nie efekt. Licencja bez logowań to czysty koszt.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ PUŁAPKI -->
+<section id="pulapki">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">Moduł 4</span>
+      <h2>Pułapki pomiaru</h2>
+      <p>Każda z nich systematycznie zawyża wynik. Występują razem i się mnożą.</p>
+    </div>
+
+    <div class="grid-cards">
+      <div class="card">
+        <span class="eyebrow">Zawyża wynik</span>
+        <h4>Efekt nowości</h4>
+        <p>Pierwsze 4–6 tygodni to zawyżony pomiar: entuzjazm, dobór najwdzięczniejszych zadań, świadomość bycia obserwowanym. Mierz efekt trwały po 8+ tygodniach, a wynik z pilotażu dyskontuj.</p>
+      </div>
+      <div class="card">
+        <span class="eyebrow">Zawyża wynik</span>
+        <h4>Samoocena zamiast pomiaru</h4>
+        <p>Ankietowe „zaoszczędziłem 30% czasu” rozjeżdża się z pomiarem zwykle dwu-, trzykrotnie. Deklaracji używaj do wyboru procesów wartych mierzenia — nigdy jako danych wejściowych do modelu finansowego.</p>
+      </div>
+      <div class="card">
+        <span class="eyebrow">Zawyża wynik</span>
+        <h4>Dobór ochotników</h4>
+        <p>Grupa pilotażowa złożona z chętnych to najlepszy możliwy przypadek. Losuj przydział do fal, inaczej ekstrapolujesz wynik entuzjastów na cały zespół.</p>
+      </div>
+      <div class="card">
+        <span class="eyebrow">Zawyża wynik</span>
+        <h4>Znikające porażki</h4>
+        <p>Zadania, w których narzędzie zawiodło, często nie trafiają do rejestru — bo „to nie liczyło się jako użycie”. Rejestruj je jawnie, razem z czasem zmarnowanym na ślepą uliczkę.</p>
+      </div>
+      <div class="card">
+        <span class="eyebrow">Zawyża wynik</span>
+        <h4>Przerzucenie kosztu</h4>
+        <p>Wykonawca oszczędza godzinę, recenzent traci dwie na wyłapywanie subtelnych błędów. Bez metryki liczby iteracji do akceptacji zobaczysz tylko dobrą połowę tego rachunku.</p>
+      </div>
+      <div class="card">
+        <span class="eyebrow">Zeruje wynik</span>
+        <h4>Prawo Parkinsona</h4>
+        <p>Bez kolejki wartościowej pracy zaoszczędzony czas wypełnia się sam. Dlatego przepustowość jest metryką obowiązkową — to ona weryfikuje, czy oszczędność w ogóle istnieje.</p>
+      </div>
+      <div class="card">
+        <span class="eyebrow">Psuje pomiar</span>
+        <h4>Prawo Goodharta</h4>
+        <p>Gdy „liczba zamkniętych zadań” stanie się miarą oceny, zadania zaczną się rozdrabniać. Nie wiąż tych metryk z oceną pracowniczą w trakcie eksperymentu. Ani po nim.</p>
+      </div>
+      <div class="card">
+        <span class="eyebrow">Psuje pomiar</span>
+        <h4>Zbyt wcześnie i zbyt szeroko</h4>
+        <p>Analiza pośrednia po dwóch tygodniach, na sześciu metrykach naraz, zawsze coś „istotnego” znajdzie. Zadeklaruj metrykę główną i termin analizy przed startem — na piśmie.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ RYZYKA -->
+<section id="ryzyka">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">Moduł 5</span>
+      <h2>Ryzyka pozafinansowe</h2>
+      <p>Poza modelem, ale nie poza decyzją. Dla laboratorium B+R część z nich waży więcej niż NPV.</p>
+    </div>
+
+    <div class="tbl-wrap">
+      <table class="doc">
+        <thead><tr><th>Ryzyko</th><th>Dlaczego dotyczy laboratorium B+R</th><th>Reakcja</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><b>Poufność danych badawczych</b></td>
+            <td>Dane klienckie, niepublikowane wyniki, wynalazki przed zgłoszeniem patentowym. Ujawnienie przed zgłoszeniem może zniweczyć zdolność patentową.</td>
+            <td>Ustal klasyfikację danych przed wdrożeniem. Wskaż jawnie kategorie, które nie trafiają do narzędzia. Zweryfikuj warunki umowy w zakresie retencji danych i wykorzystania do trenowania.</td>
+          </tr>
+          <tr>
+            <td><b>Zobowiązania grantowe i umowne</b></td>
+            <td>Umowy o dofinansowanie i NDA z partnerami przemysłowymi bywają milczące albo restrykcyjne wobec przetwarzania w usługach zewnętrznych.</td>
+            <td>Przegląd umów przed startem, nie po. Aneksy tam, gdzie potrzebne. Ten koszt jest w kalkulatorze w pozycji „Bezpieczeństwo, RODO, umowy IP”.</td>
+          </tr>
+          <tr>
+            <td><b>Wiarygodność naukowa</b></td>
+            <td>Nieskorygowany błąd w przeglądzie literatury albo w analizie danych, który przechodzi do publikacji lub raportu dla klienta, kosztuje reputację — nieodwracalnie.</td>
+            <td>Obowiązkowa weryfikacja źródeł. Narzut weryfikacji w module B ma być realny, nie życzeniowy. Dla wyników trafiających na zewnątrz — druga para oczu, bez wyjątków.</td>
+          </tr>
+          <tr>
+            <td><b>Rozwój juniorów</b></td>
+            <td>Trudne, żmudne zadania są mechanizmem, przez który młodsi badacze budują intuicję. Zautomatyzowanie ich może obniżyć koszt dziś i kompetencje za trzy lata.</td>
+            <td>Wyznacz zadania rozwojowe wykonywane bez wsparcia narzędzia. Traktuj to jako inwestycję, nie nieefektywność.</td>
+          </tr>
+          <tr>
+            <td><b>Uzależnienie od dostawcy</b></td>
+            <td>Procesy przebudowane wokół jednego narzędzia. Zmiana cennika lub warunków uderza w strukturę pracy, nie tylko w budżet.</td>
+            <td>Trzymaj prompty i wzorce pracy w repozytorium, w formie przenośnej. Modeluj scenariusz wzrostu ceny — podnieś cenę stanowiska w module E i sprawdź, czy NPV wciąż jest dodatnie.</td>
+          </tr>
+          <tr>
+            <td><b>Nierówna adopcja</b></td>
+            <td>W zespole 10-osobowym trzy osoby mogą generować cały efekt, a pozostałe siedem — sam koszt licencji.</td>
+            <td>Śledź użycie na osobę. Realokuj stanowiska zamiast dokupywać. Nierówna adopcja to sygnał do zmiany szkolenia albo przydziału, a nie do rezygnacji.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout warn">
+      <span class="eyebrow">Kiedy nie wdrażać</span>
+      <p>
+        Odpuść wdrożenie, jeśli zachodzi którykolwiek z warunków: nie potrafisz wskazać żadnego
+        kanału realizacji wartości; brak zgody na przetwarzanie waszych danych w usłudze
+        zewnętrznej; zespół nie ma powtarzalnych typów zadań, które da się zmierzyć;
+        albo nikt nie ma czasu pełnić roli opiekuna wdrożenia. Ostatni punkt jest
+        najczęstszą przyczyną martwych wdrożeń — narzędzie jest, licencje płacą się,
+        nikt nie buduje praktyki.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ CHECKLISTY -->
+<section id="checklisty">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">Moduł 6</span>
+      <h2>Checklisty</h2>
+      <p>Do odhaczenia przed startem i przy każdym przeglądzie kwartalnym.</p>
+    </div>
+
+    <div class="prose"><h3>Przed uruchomieniem pomiaru</h3></div>
+    <ul class="checklist">
+      <li><b>Metryka główna zadeklarowana na piśmie</b> wraz z terminem analizy — przed zebraniem pierwszej danej.</li>
+      <li><b>4–6 typów zadań zdefiniowanych</b> z jednoznacznym kryterium ukończenia.</li>
+      <li><b>Linia bazowa zbierana od minimum 4 tygodni</b>, co najmniej 4 zadania na osobę.</li>
+      <li><b>Przydział do fal wylosowany</b> i zapisany przed komunikacją do zespołu.</li>
+      <li><b>Metryki zabezpieczające uruchomione</b> równolegle z główną, nie później.</li>
+      <li><b>Klasyfikacja danych ustalona</b>, kategorie wykluczone spisane i zakomunikowane.</li>
+      <li><b>Umowy grantowe i NDA przejrzane</b> pod kątem przetwarzania w usłudze zewnętrznej.</li>
+      <li><b>Opiekun wdrożenia wyznaczony</b> z realnym budżetem godzinowym w harmonogramie.</li>
+      <li><b>Metryki odcięte od oceny pracowniczej</b> — zakomunikowane wprost.</li>
+      <li><b>Kanał realizacji wartości nazwany</b> i udokumentowany dowodem.</li>
+    </ul>
+
+    <div class="prose" style="margin-top:var(--sp-7)"><h3>Przegląd kwartalny po wdrożeniu</h3></div>
+    <ul class="checklist">
+      <li><b>Aktywne użycie na osobę</b> — czy są stanowiska bez logowań?</li>
+      <li><b>Efekt na zadanie</b> — czy utrzymuje się po opadnięciu efektu nowości?</li>
+      <li><b>Przepustowość</b> — czy odzyskane godziny są widoczne w liczbie zamkniętych zadań?</li>
+      <li><b>Metryki zabezpieczające</b> — czy wskaźnik poprawek i błędów nie rośnie?</li>
+      <li><b>Koszt na jednostkę wartości</b> — czy relacja poprawia się, czy pogarsza?</li>
+      <li><b>Rekalibracja modelu</b> — podstaw zmierzone wartości, zwęź rozrzut, porównaj z prognozą.</li>
+      <li><b>Przegląd portfela stanowisk</b> — realokacja zamiast dokupowania.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ================================================================ ZAŁOŻENIA -->
+<section id="zalozenia" style="border-bottom:0">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">Aneks</span>
+      <h2>Założenia, formuły i źródła</h2>
+    </div>
+
+    <div class="prose">
+      <h3>Formuły</h3>
+      <p>Model działa w krokach miesięcznych. Dla miesiąca <code>m</code> od 1 do horyzontu:</p>
+      <ul>
+        <li><code>adopcja(m) = pułap × min(1, m / rozruch)</code></li>
+        <li><code>oszczędność_netto(p) = surowa(p) × (1 − weryfikacja(p)) × (1 − nowość)</code></li>
+        <li><code>godziny(m) = zespół × h_mies × adopcja(m) × Σ udział(p) × oszczędność_netto(p)</code></li>
+        <li><code>wartość(m) = godziny(m) × koszt_h × realizacja</code></li>
+        <li><code>koszt(m) = licencje + api + opiekun(m)</code>, gdzie opiekun spada do 40% po rozruchu</li>
+        <li><code>NPV = −koszt_jednorazowy + Σ (wartość(m) − koszt(m)) / (1 + r)^(m/12)</code></li>
+      </ul>
+      <p>
+        Okres zwrotu liczony jest na przepływach niezdyskontowanych, łącznie z kosztem jednorazowym
+        w miesiącu&nbsp;0. Symulacja Monte Carlo losuje z rozkładów trójkątnych wokół wartości bazowych
+        parametry: oszczędności surowe, narzuty weryfikacji, pułap adopcji, współczynnik realizacji
+        i koszt godziny (ten ostatni z połową rozrzutu). Generator jest deterministyczny —
+        te same wejścia dają ten sam wynik, co pozwala odtworzyć analizę.
+      </p>
+
+      <h3>Skąd biorą się wartości domyślne</h3>
+      <p>
+        Oszczędności czasu w module&nbsp;B to <strong>założenia wstępne w wiarygodnym zakresie</strong>,
+        nie wyniki pomiaru w Futur Lab. Uporządkowane są zgodnie z powtarzalną obserwacją, że efekt
+        jest największy tam, gdzie zadanie polega na przetwarzaniu i redagowaniu tekstu
+        (dokumentacja, przeglądy literatury), umiarkowany w kodzie i analizie danych,
+        a najmniejszy w projektowaniu eksperymentów i interpretacji wyników — czyli tam,
+        gdzie wartość tkwi w osądzie i wiedzy o kontekście. Wartości te są przeznaczone
+        do zastąpienia pomiarem z fazy 0.
+      </p>
+      <p>
+        Ceny stanowisk odpowiadają publicznie komunikowanym stawkom planu zespołowego
+        (Standard i&nbsp;Premium) w rozliczeniu miesięcznym, przeliczonym po edytowalnym kursie.
+        <strong>Zweryfikuj je przed użyciem modelu</strong> — cenniki się zmieniają, rozliczenie roczne
+        jest tańsze, plan zespołowy zwykle wymaga minimum 5&nbsp;stanowisk, a dla większych wdrożeń
+        obowiązują warunki indywidualne. Koszt godziny 150&nbsp;PLN odpowiada pełnemu kosztowi
+        specjalisty B+R w Polsce z narzutem organizacyjnym; zweryfikuj go we własnym controllingu.
+      </p>
+
+      <h3>Ograniczenia modelu</h3>
+      <ul>
+        <li>Nie wycenia skrócenia cyklu jako opcji — wcześniejszy wynik jest liczony wyłącznie przez koszt godziny, co zaniża wartość w projektach z twardymi terminami (nabory grantowe, okna rynkowe).</li>
+        <li>Zakłada stały koszt godziny i stałą strukturę zespołu w horyzoncie analizy.</li>
+        <li>Nie modeluje efektów drugiego rzędu: zmiany jakości wyników, wpływu na retencję, wartości kompetencji budowanych lub traconych.</li>
+        <li>Rozkłady trójkątne w symulacji to uproszczenie. Po fazie&nbsp;0 zastąp rozrzut rzeczywistym przedziałem ufności estymatora.</li>
+        <li>Traktuje procesy jako niezależne. W praktyce oszczędności bywają skorelowane, co zawęża rzeczywisty rozkład NPV względem symulowanego.</li>
+      </ul>
+
+      <p style="color:var(--ink-3);font-size:14px;margin-top:var(--sp-6)">
+        Wszystkie obliczenia wykonują się lokalnie w przeglądarce. Żadne wprowadzone dane
+        nie opuszczają twojego urządzenia.
+      </p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="prose">
+      <p style="font-family:var(--font-data);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)">
+        Kalkulator ROI · Futur Lab · wersja 1.0
+      </p>
+    </div>
+  </div>
+</footer>
+
+<div class="tip" id="tip" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+"use strict";
+
+/* ============================================================
+   1. STAN
+   ============================================================ */
+const PROCESSES = [
+  { key:"research", label:"Badania i literatura", short:"Literatura",
+    hint:"Przegląd publikacji, patentów, raportów rynkowych, synteza źródeł.",
+    share:20, raw:40, verify:25, color:"--s1" },
+  { key:"code", label:"Kod, dane, prototypy", short:"Kod i dane",
+    hint:"Skrypty analityczne, notatniki, pipeline'y, symulacje, debugowanie.",
+    share:30, raw:35, verify:20, color:"--s2" },
+  { key:"docs", label:"Dokumentacja, raporty, granty", short:"Dokumentacja",
+    hint:"Raporty z badań, wnioski grantowe, dokumentacja techniczna, sprawozdawczość.",
+    share:20, raw:45, verify:15, color:"--s3" },
+  { key:"design", label:"Eksperymenty i wnioski", short:"Eksperymenty",
+    hint:"Projektowanie badań, hipotezy, interpretacja wyników.",
+    share:15, raw:15, verify:30, color:"--s4" },
+];
+
+const DEFAULTS = {
+  headcount:10, hoursMonth:152, hourlyCost:150,
+  adoption:75, rampMonths:4, novelty:15,
+  realization:45,
+  seatsPrem:4, seatsStd:6, pricePrem:125, priceStd:25, fx:3.64,
+  apiCost:800, championHrs:16, onboardHrs:8,
+  setupCost:8000, legalCost:6000, measureCost:10000,
+  horizon:24, discount:12, spread:35,
+};
+PROCESSES.forEach(p => {
+  DEFAULTS["share_"+p.key]  = p.share;
+  DEFAULTS["raw_"+p.key]    = p.raw;
+  DEFAULTS["verify_"+p.key] = p.verify;
+});
+
+const PRESETS = {
+  pess: { adoption:50, novelty:30, realization:20, rampMonths:6, spread:55,
+          raw_research:25, raw_code:20, raw_docs:30, raw_design:8,
+          verify_research:40, verify_code:35, verify_docs:25, verify_design:45 },
+  opt:  { adoption:90, novelty:5,  realization:70, rampMonths:2, spread:25,
+          raw_research:55, raw_code:50, raw_docs:60, raw_design:22,
+          verify_research:15, verify_code:12, verify_docs:10, verify_design:20 },
+};
+
+const S = Object.assign({}, DEFAULTS);
+const MC_N = 4000;
+
+/* ============================================================
+   2. FORMATOWANIE
+   ============================================================ */
+const nf0 = new Intl.NumberFormat("pl-PL", { maximumFractionDigits: 0 });
+const nf1 = new Intl.NumberFormat("pl-PL", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const pln = v => nf0.format(Math.round(v)) + " zł";
+function plnShort(v) {
+  const a = Math.abs(v), sg = v < 0 ? "−" : "";
+  if (a >= 1e6) return sg + nf1.format(a/1e6) + " mln zł";
+  if (a >= 1e3) return sg + nf0.format(Math.round(a/1e3)) + " tys. zł";
+  return sg + nf0.format(Math.round(a)) + " zł";
+}
+const pct = v => nf0.format(Math.round(v)) + "%";
+
+/* ============================================================
+   3. MODEL FINANSOWY
+   ============================================================ */
+function seatCostPLN(s) {
+  return (s.seatsPrem * s.pricePrem + s.seatsStd * s.priceStd) * s.fx;
+}
+function oneOffCost(s) {
+  return s.headcount * s.onboardHrs * s.hourlyCost
+       + s.setupCost + s.legalCost + s.measureCost;
+}
+/** Ważona oszczędność netto jako ułamek CAŁEGO czasu pracy zespołu. */
+function weightedSaving(s) {
+  let acc = 0;
+  for (const p of PROCESSES) {
+    const share  = s["share_"+p.key]  / 100;
+    const raw    = s["raw_"+p.key]    / 100;
+    const verify = s["verify_"+p.key] / 100;
+    acc += share * raw * (1 - verify);
+  }
+  return acc * (1 - s.novelty / 100);
+}
+function savingByProcess(s) {
+  return PROCESSES.map(p => {
+    const share  = s["share_"+p.key]  / 100;
+    const raw    = s["raw_"+p.key]    / 100;
+    const verify = s["verify_"+p.key] / 100;
+    return share * raw * (1 - verify) * (1 - s.novelty / 100);
+  });
+}
+
+/** Pełny przebieg miesięczny. */
+function run(s) {
+  const H = s.horizon;
+  const wSave = weightedSaving(s);
+  const capHours = s.headcount * s.hoursMonth;
+  const ceiling = s.adoption / 100;
+  const realization = s.realization / 100;
+  const seats = seatCostPLN(s);
+  const monthlyRate = Math.pow(1 + s.discount / 100, 1 / 12) - 1;
+  const oneOff = oneOffCost(s);
+
+  const rows = [];
+  let cumUndisc = -oneOff, cumDisc = -oneOff, npv = -oneOff;
+  let payback = null;
+
+  for (let m = 1; m <= H; m++) {
+    const adoption = ceiling * Math.min(1, m / Math.max(1, s.rampMonths));
+    const hours = capHours * adoption * wSave;
+    const gross = hours * s.hourlyCost;
+    const value = gross * realization;
+    const champ = s.championHrs * s.hourlyCost * (m <= s.rampMonths ? 1 : 0.4);
+    const cost = seats + s.apiCost + champ;
+    const net = value - cost;
+    const df = 1 / Math.pow(1 + monthlyRate, m);
+
+    const prevCum = cumUndisc;
+    cumUndisc += net;
+    cumDisc += net * df;
+    npv += net * df;
+
+    if (payback === null && prevCum < 0 && cumUndisc >= 0) {
+      payback = m - 1 + (net !== 0 ? (-prevCum) / net : 0);
+    }
+    rows.push({ m, adoption, hours, gross, value, cost, net, cumUndisc, cumDisc });
+  }
+
+  const totalCost = oneOff + rows.reduce((a, r) => a + r.cost, 0);
+  const totalValue = rows.reduce((a, r) => a + r.value, 0);
+
+  return {
+    rows, npv, payback, oneOff, totalCost, totalValue,
+    roi: totalCost > 0 ? (totalValue - totalCost) / totalCost * 100 : 0,
+    bcr: totalCost > 0 ? totalValue / totalCost : 0,
+    steady: rows[rows.length - 1],
+    monthlyRecurring: seats + s.apiCost + s.championHrs * s.hourlyCost * 0.4,
+  };
+}
+
+/** Wariant bez alokacji wierszy — używany w symulacji (setki tysięcy przebiegów). */
+function runPath(s, cumOut) {
+  const H = s.horizon;
+  const wSave = weightedSaving(s);
+  const capHours = s.headcount * s.hoursMonth;
+  const ceiling = s.adoption / 100;
+  const realization = s.realization / 100;
+  const fixed = seatCostPLN(s) + s.apiCost;
+  const monthlyRate = Math.pow(1 + s.discount / 100, 1 / 12) - 1;
+  const oneOff = oneOffCost(s);
+  const champBase = s.championHrs * s.hourlyCost;
+  const unit = capHours * wSave * s.hourlyCost * realization;
+
+  let cum = -oneOff, df = 1;
+  for (let m = 1; m <= H; m++) {
+    const adoption = ceiling * Math.min(1, m / Math.max(1, s.rampMonths));
+    const net = unit * adoption - (fixed + champBase * (m <= s.rampMonths ? 1 : 0.4));
+    df /= (1 + monthlyRate);
+    cum += net * df;
+    cumOut[m - 1] = cum;
+  }
+  return cum;
+}
+
+/** Minimalna realizacja, przy której NPV = 0 (bisekcja). */
+function breakEvenRealization(s) {
+  const f = r => run(Object.assign({}, s, { realization: r })).npv;
+  if (f(100) < 0) return null;
+  if (f(0) >= 0) return 0;
+  let lo = 0, hi = 100;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (f(mid) < 0) lo = mid; else hi = mid;
+  }
+  return hi;
+}
+function breakEvenAdoption(s) {
+  const f = a => run(Object.assign({}, s, { adoption: a })).npv;
+  if (f(100) < 0) return null;
+  if (f(0) >= 0) return 0;
+  let lo = 0, hi = 100;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (f(mid) < 0) lo = mid; else hi = mid;
+  }
+  return hi;
+}
+
+/* ============================================================
+   4. MONTE CARLO (deterministyczny generator)
+   ============================================================ */
+function makeRng(seed) {
+  let x = seed >>> 0;
+  return () => {
+    x ^= x << 13; x >>>= 0;
+    x ^= x >> 17;
+    x ^= x << 5;  x >>>= 0;
+    return x / 4294967296;
+  };
+}
+/** Rozkład trójkątny (min, moda, max). */
+function tri(u, lo, mode, hi) {
+  if (hi <= lo) return mode;
+  const c = (mode - lo) / (hi - lo);
+  return u < c
+    ? lo + Math.sqrt(u * (hi - lo) * (mode - lo))
+    : hi - Math.sqrt((1 - u) * (hi - lo) * (hi - mode));
+}
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+function monteCarlo(s) {
+  const rng = makeRng(20260727);
+  const sp = s.spread / 100;
+  const H = s.horizon;
+  const npvs = new Float64Array(MC_N);
+  const cumByMonth = Array.from({ length: H }, () => new Float64Array(MC_N));
+  const scratch = new Float64Array(H);
+
+  for (let i = 0; i < MC_N; i++) {
+    const d = Object.assign({}, s);
+    for (const p of PROCESSES) {
+      const base = s["raw_" + p.key];
+      d["raw_" + p.key] = clamp(tri(rng(), base * (1 - sp), base, base * (1 + sp)), 0, 95);
+      const vb = s["verify_" + p.key];
+      d["verify_" + p.key] = clamp(tri(rng(), vb * (1 - sp), vb, vb * (1 + sp * 1.4)), 0, 90);
+    }
+    d.adoption    = clamp(tri(rng(), s.adoption * (1 - sp), s.adoption, Math.min(100, s.adoption * (1 + sp * 0.6))), 5, 100);
+    d.realization = clamp(tri(rng(), s.realization * (1 - sp * 1.2), s.realization, Math.min(100, s.realization * (1 + sp))), 0, 100);
+    d.hourlyCost  = s.hourlyCost * tri(rng(), 1 - sp * 0.4, 1, 1 + sp * 0.4);
+
+    npvs[i] = runPath(d, scratch);
+    for (let m = 0; m < H; m++) cumByMonth[m][i] = scratch[m];
+  }
+
+  const sorted = Float64Array.from(npvs).sort();
+  const q = arr => p => arr[Math.min(arr.length - 1, Math.floor(p * arr.length))];
+  const qn = q(sorted);
+  let pos = 0;
+  for (let i = 0; i < MC_N; i++) if (npvs[i] > 0) pos++;
+
+  const band = cumByMonth.map(a => {
+    const so = Float64Array.from(a).sort();
+    const f = q(so);
+    return { p10: f(0.10), p50: f(0.50), p90: f(0.90) };
+  });
+
+  return {
+    npvs: sorted,
+    p10: qn(0.10), p50: qn(0.50), p90: qn(0.90),
+    pPositive: pos / MC_N * 100,
+    band,
+  };
+}
+
+/* ============================================================
+   5. TORNADO
+   ============================================================ */
+function tornado(s, baseNpv) {
+  const drivers = [
+    { key:"realization", label:"Realizacja wartości",   lo: Math.max(0, s.realization - 25), hi: Math.min(100, s.realization + 25), unit:"%" },
+    { key:"adoption",    label:"Pułap adopcji",         lo: Math.max(10, s.adoption - 25),   hi: Math.min(100, s.adoption + 20),    unit:"%" },
+    { key:"_effect",     label:"Wielkość efektu",       lo: 0.6, hi: 1.4, unit:"×" },
+    { key:"hourlyCost",  label:"Koszt godziny",         lo: s.hourlyCost * 0.75, hi: s.hourlyCost * 1.25, unit:" zł" },
+    { key:"novelty",     label:"Dyskonto nowości",      lo: Math.max(0, s.novelty - 15),     hi: Math.min(50, s.novelty + 20),      unit:"%" },
+    { key:"_verify",     label:"Narzut weryfikacji",    lo: 0.6, hi: 1.6, unit:"×" },
+    { key:"rampMonths",  label:"Czas rozruchu",         lo: Math.max(1, s.rampMonths - 3),   hi: s.rampMonths + 4,                  unit:" mies." },
+    { key:"_seats",      label:"Cena stanowisk",        lo: 0.7, hi: 1.5, unit:"×" },
+    { key:"apiCost",     label:"Zużycie API",           lo: s.apiCost * 0.5, hi: s.apiCost * 2 + 500, unit:" zł" },
+  ];
+
+  const evalAt = (d, v) => {
+    const c = Object.assign({}, s);
+    if (d.key === "_effect")       PROCESSES.forEach(p => c["raw_"+p.key]    = clamp(s["raw_"+p.key] * v, 0, 95));
+    else if (d.key === "_verify")  PROCESSES.forEach(p => c["verify_"+p.key] = clamp(s["verify_"+p.key] * v, 0, 90));
+    else if (d.key === "_seats") { c.pricePrem = s.pricePrem * v; c.priceStd = s.priceStd * v; }
+    else                           c[d.key] = v;
+    return run(c).npv;
+  };
+
+  return drivers
+    .map(d => {
+      const a = evalAt(d, d.lo), b = evalAt(d, d.hi);
+      return {
+        label: d.label,
+        low: a - baseNpv, high: b - baseNpv,
+        loTxt: (d.unit === "×" ? nf1.format(d.lo) : nf0.format(Math.round(d.lo))) + d.unit,
+        hiTxt: (d.unit === "×" ? nf1.format(d.hi) : nf0.format(Math.round(d.hi))) + d.unit,
+        span: Math.abs(b - a),
+      };
+    })
+    .filter(d => d.span > 1)
+    .sort((x, y) => y.span - x.span);
+}
+
+/* ============================================================
+   6. POMOCNICZE SVG
+   ============================================================ */
+const NS = "http://www.w3.org/2000/svg";
+function el(name, attrs, text) {
+  const n = document.createElementNS(NS, name);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  if (text != null) n.textContent = text;
+  return n;
+}
+function cssv(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+/** Podziałki na "okrągłych" wartościach; gdy zakres obejmuje zero, zero zawsze wypada na podziałce. */
+function niceScale(min, max, count) {
+  const span = (max - min) || Math.abs(max) || 1;
+  const mag = Math.pow(10, Math.floor(Math.log10(span / count)));
+  const norm = (span / count) / mag;
+  const step = (norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 2.5 ? 2.5 : norm <= 5 ? 5 : 10) * mag;
+  const lo = Math.floor(min / step) * step;
+  const hi = Math.ceil(max / step) * step;
+  const ticks = [];
+  for (let v = lo; v <= hi + step * 1e-6; v += step) ticks.push(Math.abs(v) < step * 1e-6 ? 0 : v);
+  return { lo, hi, ticks };
+}
+
+function svgRoot(w, h) {
+  const s = el("svg", { viewBox: `0 0 ${w} ${h}`, width: "100%", height: h, role: "img" });
+  s.style.overflow = "visible";
+  return s;
+}
+
+const tipEl = document.getElementById("tip");
+function showTip(x, y, html) {
+  tipEl.innerHTML = html;
+  tipEl.style.opacity = "1";
+  const r = tipEl.getBoundingClientRect();
+  let left = x + 14, top = y - r.height - 12;
+  if (left + r.width > window.innerWidth - 10) left = x - r.width - 14;
+  if (top < 8) top = y + 18;
+  tipEl.style.left = left + "px";
+  tipEl.style.top = top + "px";
+}
+function hideTip() { tipEl.style.opacity = "0"; }
+
+/* ============================================================
+   7. WYKRESY
+   ============================================================ */
+
+/* --- 7a. Skumulowany przepływ ------------------------------- */
+function drawCash(mount, res, mc) {
+  mount.innerHTML = "";
+  const W = 780, H = 300, M = { t: 16, r: 78, b: 34, l: 74 };
+  const iw = W - M.l - M.r, ih = H - M.t - M.b;
+  const n = res.rows.length;
+
+  const vals = [];
+  mc.band.forEach(b => vals.push(b.p10, b.p90));
+  vals.push(-res.oneOff, 0);
+  const scale = niceScale(Math.min(...vals), Math.max(...vals), 5);
+  const vmin = scale.lo, vmax = scale.hi;
+
+  const X = m => M.l + (m / n) * iw;
+  const Y = v => M.t + ih - ((v - vmin) / (vmax - vmin)) * ih;
+
+  const svg = svgRoot(W, H);
+  svg.setAttribute("aria-label", "Wykres skumulowanego zdyskontowanego przepływu netto w czasie z przedziałem niepewności");
+
+  const ruleC = cssv("--rule"), ink3 = cssv("--ink-3"), ink2 = cssv("--ink-2");
+  const accent = cssv("--accent");
+
+  // siatka pozioma — recesywna
+  scale.ticks.forEach(v => {
+    svg.appendChild(el("line", { x1: M.l, x2: M.l + iw, y1: Y(v), y2: Y(v), stroke: ruleC, "stroke-width": 1 }));
+    svg.appendChild(el("text", { x: M.l - 10, y: Y(v) + 4, "text-anchor": "end", "font-size": 10.5, fill: ink3 }, v === 0 ? "0" : plnShort(v)));
+  });
+
+  // pasmo P10–P90
+  let up = `M ${X(0)} ${Y(-res.oneOff)}`, dn = "";
+  mc.band.forEach((b, i) => { up += ` L ${X(i + 1)} ${Y(b.p90)}`; });
+  for (let i = mc.band.length - 1; i >= 0; i--) dn += ` L ${X(i + 1)} ${Y(mc.band[i].p10)}`;
+  svg.appendChild(el("path", {
+    d: up + dn + ` L ${X(0)} ${Y(-res.oneOff)} Z`,
+    fill: accent, "fill-opacity": 0.13, stroke: accent, "stroke-opacity": 0.28, "stroke-width": 1,
+  }));
+
+  // linia zera
+  svg.appendChild(el("line", {
+    x1: M.l, x2: M.l + iw, y1: Y(0), y2: Y(0),
+    stroke: ink3, "stroke-width": 1.5, "stroke-dasharray": "5 4",
+  }));
+  svg.appendChild(el("text", { x: M.l + iw + 8, y: Y(0) + 4, "font-size": 10.5, fill: ink3 }, "próg"));
+
+  // mediana
+  let med = `M ${X(0)} ${Y(-res.oneOff)}`;
+  mc.band.forEach((b, i) => { med += ` L ${X(i + 1)} ${Y(b.p50)}`; });
+  svg.appendChild(el("path", { d: med, fill: "none", stroke: accent, "stroke-width": 2, "stroke-linejoin": "round" }));
+
+  // znacznik zwrotu
+  if (res.payback != null && res.payback <= n) {
+    const px = X(res.payback);
+    svg.appendChild(el("line", { x1: px, x2: px, y1: M.t, y2: M.t + ih, stroke: cssv("--good"), "stroke-width": 1.5, "stroke-dasharray": "3 3" }));
+    svg.appendChild(el("circle", { cx: px, cy: Y(0), r: 4.5, fill: cssv("--good"), stroke: cssv("--panel"), "stroke-width": 2 }));
+    const lbl = "zwrot: " + nf1.format(res.payback) + " mies.";
+    const flip = px > M.l + iw * 0.68;
+    svg.appendChild(el("text", {
+      x: flip ? px - 8 : px + 8, y: M.t + 12,
+      "text-anchor": flip ? "end" : "start", "font-size": 10.5, fill: cssv("--good"), "font-weight": 600,
+    }, lbl));
+  }
+
+  // oś X
+  const step = n > 36 ? 12 : n > 18 ? 6 : 3;
+  for (let m = 0; m <= n; m += step) {
+    svg.appendChild(el("text", { x: X(m), y: H - 12, "text-anchor": "middle", "font-size": 10.5, fill: ink3 }, m));
+  }
+  svg.appendChild(el("text", { x: M.l, y: H - 1, "font-size": 10, fill: ink3, "letter-spacing": ".08em" }, "MIESIĄC"));
+
+  // warstwa interakcji
+  const cross = el("line", { x1: 0, x2: 0, y1: M.t, y2: M.t + ih, stroke: ink2, "stroke-width": 1, opacity: 0 });
+  const dot = el("circle", { r: 4, fill: accent, stroke: cssv("--panel"), "stroke-width": 2, opacity: 0 });
+  svg.appendChild(cross); svg.appendChild(dot);
+
+  const hit = el("rect", { x: M.l, y: M.t, width: iw, height: ih, fill: "transparent", style: "cursor:crosshair" });
+  svg.appendChild(hit);
+  hit.addEventListener("pointermove", e => {
+    const r = svg.getBoundingClientRect();
+    const rel = (e.clientX - r.left) / r.width * W;
+    const m = Math.round(clamp((rel - M.l) / iw * n, 1, n));
+    const b = mc.band[m - 1];
+    cross.setAttribute("x1", X(m)); cross.setAttribute("x2", X(m)); cross.setAttribute("opacity", .5);
+    dot.setAttribute("cx", X(m)); dot.setAttribute("cy", Y(b.p50)); dot.setAttribute("opacity", 1);
+    showTip(e.clientX, e.clientY,
+      `<div class="tip-t">Miesiąc ${m}</div>
+       <div class="tip-r"><em>P90</em><b>${plnShort(b.p90)}</b></div>
+       <div class="tip-r"><em>Mediana</em><b>${plnShort(b.p50)}</b></div>
+       <div class="tip-r"><em>P10</em><b>${plnShort(b.p10)}</b></div>`);
+  });
+  hit.addEventListener("pointerleave", () => {
+    hideTip(); cross.setAttribute("opacity", 0); dot.setAttribute("opacity", 0);
+  });
+
+  mount.appendChild(svg);
+}
+
+/* --- 7b. Tornado -------------------------------------------- */
+function drawTornado(mount, data) {
+  mount.innerHTML = "";
+  if (!data.length) { mount.textContent = "Brak zmiennych o istotnym wpływie."; return; }
+
+  const rowH = 27, W = 780, M = { t: 22, r: 96, b: 22, l: 168 };
+  const H = M.t + data.length * rowH + M.b;
+  const iw = W - M.l - M.r;
+  const maxAbs = Math.max(...data.map(d => Math.max(Math.abs(d.low), Math.abs(d.high)))) * 1.06 || 1;
+  const cx = M.l + iw / 2;
+  const X = v => cx + (v / maxAbs) * (iw / 2);
+
+  const svg = svgRoot(W, H);
+  svg.setAttribute("aria-label", "Wykres tornado: wpływ zmiany każdego parametru na wartość bieżącą netto");
+  const ink = cssv("--ink"), ink3 = cssv("--ink-3"), ruleC = cssv("--rule");
+  const cLow = cssv("--s1"), cHigh = cssv("--bad");
+
+  svg.appendChild(el("line", { x1: cx, x2: cx, y1: M.t - 8, y2: H - M.b + 2, stroke: cssv("--rule-strong"), "stroke-width": 1.5 }));
+  svg.appendChild(el("text", { x: cx, y: 11, "text-anchor": "middle", "font-size": 10, fill: ink3, "letter-spacing": ".08em" }, "NPV BAZOWE"));
+
+  data.forEach((d, i) => {
+    const y = M.t + i * rowH;
+    const yc = y + rowH / 2;
+    svg.appendChild(el("text", { x: M.l - 12, y: yc + 4, "text-anchor": "end", "font-size": 11.5, fill: ink }, d.label));
+
+    [[d.low, cLow, d.loTxt], [d.high, cHigh, d.hiTxt]].forEach(([v, col, txt]) => {
+      if (Math.abs(v) < 1) return;
+      const x0 = Math.min(cx, X(v)), w = Math.abs(X(v) - cx);
+      // 2px odstęp od osi + zaokrąglone końce danych
+      svg.appendChild(el("rect", {
+        x: v < 0 ? x0 : cx + 2, y: y + 5, width: Math.max(1, w - 2), height: rowH - 12,
+        fill: col, rx: 3,
+      }));
+      const g = el("g");
+      g.appendChild(el("title", null, `${d.label} = ${txt} → zmiana NPV ${v >= 0 ? "+" : "−"}${plnShort(Math.abs(v))}`));
+      g.appendChild(el("rect", { x: v < 0 ? x0 : cx, y: y + 3, width: Math.max(3, w), height: rowH - 8, fill: "transparent" }));
+      svg.appendChild(g);
+    });
+
+    const total = Math.abs(d.high - d.low);
+    svg.appendChild(el("text", {
+      x: W - M.r + 8, y: yc + 4, "font-size": 10.5, fill: ink3,
+    }, "±" + plnShort(total / 2)));
+    svg.appendChild(el("line", { x1: M.l, x2: W - M.r, y1: y + rowH, y2: y + rowH, stroke: ruleC, "stroke-width": 1 }));
+  });
+
+  mount.appendChild(svg);
+}
+
+/* --- 7c. Rozkład Monte Carlo -------------------------------- */
+function drawMc(mount, mc) {
+  mount.innerHTML = "";
+  const W = 780, H = 260, M = { t: 30, r: 20, b: 40, l: 54 };
+  const iw = W - M.l - M.r, ih = H - M.t - M.b;
+
+  const lo = mc.npvs[Math.floor(MC_N * 0.005)], hi = mc.npvs[Math.floor(MC_N * 0.995)];
+  const BINS = 34;
+  const w = (hi - lo) / BINS || 1;
+  const counts = new Array(BINS).fill(0);
+  for (let i = 0; i < MC_N; i++) {
+    const b = Math.floor((mc.npvs[i] - lo) / w);
+    if (b >= 0 && b < BINS) counts[b]++;
+  }
+  const maxC = Math.max(...counts);
+  const X = v => M.l + ((v - lo) / (hi - lo)) * iw;
+  const Y = c => M.t + ih - (c / maxC) * ih;
+
+  const svg = svgRoot(W, H);
+  svg.setAttribute("aria-label", "Histogram rozkładu wartości bieżącej netto z symulacji Monte Carlo");
+  const ink = cssv("--ink"), ink3 = cssv("--ink-3");
+  const accent = cssv("--accent"), bad = cssv("--bad");
+
+  svg.appendChild(el("line", { x1: M.l, x2: M.l + iw, y1: M.t + ih, y2: M.t + ih, stroke: cssv("--rule-strong"), "stroke-width": 1 }));
+
+  const bw = iw / BINS;
+  counts.forEach((c, i) => {
+    if (!c) return;
+    const v0 = lo + i * w;
+    const h = M.t + ih - Y(c);
+    const g = el("g");
+    g.appendChild(el("title", null, `${plnShort(v0)} … ${plnShort(v0 + w)} — ${nf0.format(c)} przebiegów (${nf1.format(c / MC_N * 100)}%)`));
+    g.appendChild(el("rect", {
+      x: M.l + i * bw + 1, y: Y(c), width: Math.max(1, bw - 2), height: Math.max(1, h),
+      fill: v0 + w / 2 < 0 ? bad : accent, rx: 2,
+    }));
+    svg.appendChild(g);
+  });
+
+  // linia zera
+  if (lo < 0 && hi > 0) {
+    svg.appendChild(el("line", { x1: X(0), x2: X(0), y1: M.t - 12, y2: M.t + ih, stroke: ink, "stroke-width": 1.5 }));
+    svg.appendChild(el("text", { x: X(0), y: M.t - 17, "text-anchor": "middle", "font-size": 10, fill: ink, "letter-spacing": ".06em" }, "0"));
+  }
+
+  // znaczniki percentyli
+  [["P10", mc.p10], ["P50", mc.p50], ["P90", mc.p90]].forEach(([lab, v], k) => {
+    if (v < lo || v > hi) return;
+    const x = X(v);
+    svg.appendChild(el("line", { x1: x, x2: x, y1: M.t + 2, y2: M.t + ih, stroke: ink3, "stroke-width": 1, "stroke-dasharray": "3 3" }));
+    svg.appendChild(el("text", {
+      x: x, y: M.t + ih + 15, "text-anchor": "middle", "font-size": 10.5, fill: ink3,
+    }, lab));
+    svg.appendChild(el("text", {
+      x: x, y: M.t + ih + 29, "text-anchor": "middle", "font-size": 10.5, fill: ink, "font-weight": 600,
+    }, plnShort(v)));
+  });
+
+  svg.appendChild(el("text", { x: M.l, y: 12, "font-size": 10, fill: ink3, "letter-spacing": ".08em" }, "LICZBA PRZEBIEGÓW"));
+  mount.appendChild(svg);
+}
+
+/* --- 7d. Wartość wg procesu --------------------------------- */
+function drawProc(mount, s, res) {
+  mount.innerHTML = "";
+  const per = savingByProcess(s);
+  const capHours = s.headcount * s.hoursMonth;
+  const adoption = s.adoption / 100;
+  const realization = s.realization / 100;
+  const items = PROCESSES.map((p, i) => ({
+    label: p.short,
+    color: cssv(p.color),
+    hours: capHours * adoption * per[i] * 12,
+    value: capHours * adoption * per[i] * s.hourlyCost * realization * 12,
+  }));
+
+  const rowH = 44, W = 780, M = { t: 8, r: 24, b: 8, l: 128 };
+  const H = M.t + items.length * rowH + M.b;
+  const iw = W - M.l - M.r;
+  const maxV = Math.max(...items.map(i => i.value), 1);
+
+  const svg = svgRoot(W, H);
+  svg.setAttribute("aria-label", "Roczna wartość netto w podziale na cztery procesy B+R");
+  const ink = cssv("--ink"), ink3 = cssv("--ink-3");
+
+  items.forEach((it, i) => {
+    const y = M.t + i * rowH;
+    const bw = Math.max(2, (it.value / maxV) * iw * 0.82);
+    svg.appendChild(el("text", { x: M.l - 12, y: y + 22, "text-anchor": "end", "font-size": 12, fill: ink }, it.label));
+    const g = el("g");
+    g.appendChild(el("title", null, `${it.label}: ${pln(it.value)} rocznie · ${nf0.format(Math.round(it.hours))} h`));
+    g.appendChild(el("rect", { x: M.l, y: y + 8, width: bw, height: 22, fill: it.color, rx: 3 }));
+    svg.appendChild(g);
+    // etykieta bezpośrednia — reguła ulgi dla kolorów o niskim kontraście
+    svg.appendChild(el("text", {
+      x: M.l + bw + 10, y: y + 23, "font-size": 12, fill: ink, "font-weight": 600,
+    }, plnShort(it.value)));
+    svg.appendChild(el("text", {
+      x: M.l + bw + 10, y: y + 37, "font-size": 10.5, fill: ink3,
+    }, nf0.format(Math.round(it.hours)) + " h / rok"));
+  });
+
+  mount.appendChild(svg);
+}
+
+/* ============================================================
+   8. TABELE (widok alternatywny — wymóg dostępności)
+   ============================================================ */
+function table(headers, rows) {
+  const wrap = document.createElement("div");
+  wrap.className = "tbl-scroll";
+  const t = document.createElement("table");
+  t.className = "data";
+  const th = document.createElement("thead");
+  th.innerHTML = "<tr>" + headers.map(h => `<th scope="col">${h}</th>`).join("") + "</tr>";
+  const tb = document.createElement("tbody");
+  tb.innerHTML = rows.map(r => "<tr>" + r.map(c => `<td>${c}</td>`).join("") + "</tr>").join("");
+  t.appendChild(th); t.appendChild(tb); wrap.appendChild(t);
+  return wrap;
+}
+
+/* ============================================================
+   9. KPI
+   ============================================================ */
+function renderKpis(s, res, mc, beReal, beAdopt) {
+  const box = document.getElementById("kpis");
+  const npvOk = res.npv > 0;
+  const conf = mc.pPositive >= 80 ? "good" : mc.pPositive >= 55 ? "warn" : "bad";
+  const confTxt = mc.pPositive >= 80 ? "Wynik odporny" : mc.pPositive >= 55 ? "Wynik niepewny" : "Wynik ryzykowny";
+
+  const cards = [
+    { t: `NPV — ${s.horizon} mies.`, v: plnShort(res.npv),
+      c: npvOk ? "var(--good)" : "var(--bad)",
+      sub: `Stopa dyskontowa ${pct(s.discount)} rocznie` },
+    { t: "Okres zwrotu",
+      v: res.payback != null ? nf1.format(res.payback) + " mies." : "brak",
+      sub: res.payback != null ? "Na przepływach niezdyskontowanych" : `Nie zwraca się w ${s.horizon} mies.`,
+      c: res.payback != null && res.payback <= 12 ? "var(--good)" : res.payback != null ? "var(--warn)" : "var(--bad)" },
+    { t: "P(NPV > 0)", v: pct(mc.pPositive), pill: [conf, confTxt],
+      sub: `${nf0.format(MC_N)} przebiegów symulacji` },
+    { t: "Scenariusz P10", v: plnShort(mc.p10),
+      c: mc.p10 >= 0 ? "var(--good)" : "var(--bad)",
+      sub: "Wynik, gdy wszystko idzie przeciętnie źle" },
+    { t: "Próg realizacji",
+      v: beReal == null ? "niedostępny" : pct(beReal),
+      sub: beReal == null ? "Nie zwraca się nawet przy 100%" : `Ustawiono: ${pct(s.realization)}`,
+      c: beReal != null && beReal < s.realization * 0.6 ? "var(--good)" : "var(--ink)" },
+    { t: "Próg adopcji",
+      v: beAdopt == null ? "niedostępny" : pct(beAdopt),
+      sub: beAdopt == null ? "Nie zwraca się nawet przy 100%" : `Ustawiono: ${pct(s.adoption)}`,
+      c: beAdopt != null && beAdopt < s.adoption * 0.6 ? "var(--good)" : "var(--ink)" },
+    { t: "Koszt miesięczny", v: pln(res.monthlyRecurring),
+      sub: `Jednorazowo: ${plnShort(res.oneOff)}` },
+    { t: "Odzyskane godziny", v: nf0.format(Math.round(res.steady.hours)) + " h",
+      sub: `Miesięcznie w stanie ustabilizowanym (${nf1.format(res.steady.hours / s.headcount)} h / os.)` },
+  ];
+
+  box.innerHTML = cards.map(c => `
+    <div class="kpi">
+      <dt>${c.t}</dt>
+      <dd style="color:${c.c || "var(--ink)"}">${c.v}</dd>
+      ${c.pill ? `<span class="pill ${c.pill[0]}">${c.pill[1]}</span>` : ""}
+      <span class="sub">${c.sub}</span>
+    </div>`).join("");
+}
+
+/* ============================================================
+   10. STEROWANIE
+   ============================================================ */
+function buildProcessFields() {
+  const host = document.getElementById("processFields");
+  host.innerHTML = PROCESSES.map(p => `
+    <div style="border-top:1px solid var(--rule);padding-top:var(--sp-3);margin-top:var(--sp-3)">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px">
+        <i class="swatch" style="background:var(${p.color})"></i>
+        <strong style="font-size:13px">${p.label}</strong>
+      </div>
+      <p class="hint" style="font-size:11.5px;color:var(--ink-3);margin:0 0 var(--sp-3);line-height:1.4">${p.hint}</p>
+      <div class="field" style="margin-bottom:var(--sp-3)">
+        <label for="share_${p.key}">Udział w czasie pracy (%)</label>
+        <div class="row"><input type="range" id="share_${p.key}_r" min="0" max="60" step="1"><input type="number" id="share_${p.key}" min="0" max="60" step="1"></div>
+      </div>
+      <div class="field" style="margin-bottom:var(--sp-3)">
+        <label for="raw_${p.key}">Surowa oszczędność czasu (%)</label>
+        <div class="row"><input type="range" id="raw_${p.key}_r" min="0" max="80" step="1"><input type="number" id="raw_${p.key}" min="0" max="80" step="1"></div>
+      </div>
+      <div class="field">
+        <label for="verify_${p.key}">Narzut weryfikacji (% odzyskanego czasu)</label>
+        <div class="row"><input type="range" id="verify_${p.key}_r" min="0" max="80" step="1"><input type="number" id="verify_${p.key}" min="0" max="80" step="1"></div>
+      </div>
+      <div style="font-family:var(--font-data);font-size:11px;color:var(--ink-2);margin-top:6px" id="net_${p.key}"></div>
+    </div>`).join("");
+}
+
+function bind(key) {
+  const num = document.getElementById(key);
+  const rng = document.getElementById(key + "_r");
+  if (!num) return;
+  const push = v => {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return;
+    S[key] = n;
+    if (num.value !== String(n)) num.value = n;
+    if (rng && rng.value !== String(n)) rng.value = n;
+    render();
+  };
+  num.value = S[key];
+  if (rng) { rng.value = S[key]; rng.addEventListener("input", e => push(e.target.value)); }
+  num.addEventListener("input", e => push(e.target.value));
+}
+
+function syncInputs() {
+  Object.keys(S).forEach(k => {
+    const num = document.getElementById(k), rng = document.getElementById(k + "_r");
+    if (num) num.value = S[k];
+    if (rng) rng.value = S[k];
+  });
+}
+
+/* ============================================================
+   11. RENDER
+   ============================================================ */
+let raf = null;
+function render() {
+  if (raf) cancelAnimationFrame(raf);
+  raf = requestAnimationFrame(renderNow);
+}
+
+function renderNow() {
+  // suma udziałów
+  const sum = PROCESSES.reduce((a, p) => a + S["share_" + p.key], 0);
+  const sc = document.getElementById("shareSum");
+  sc.className = "sum-check " + (sum > 100 ? "over" : "ok");
+  sc.textContent = sum > 100
+    ? `Suma udziałów: ${sum}% — przekracza 100%. Popraw wartości.`
+    : `Suma udziałów: ${sum}% · pozostałe ${100 - sum}% to spotkania i administracja (nie modelowane).`;
+
+  // efekt netto na proces
+  const per = savingByProcess(S);
+  PROCESSES.forEach((p, i) => {
+    const n = document.getElementById("net_" + p.key);
+    if (!n) return;
+    const net = S["raw_" + p.key] / 100 * (1 - S["verify_" + p.key] / 100) * (1 - S.novelty / 100);
+    n.textContent = `→ efekt netto ${nf1.format(net * 100)}% na zadaniu · ${nf1.format(per[i] * 100)}% czasu zespołu`;
+  });
+
+  const res = run(S);
+  const mc = monteCarlo(S);
+  const torn = tornado(S, res.npv);
+  const beReal = breakEvenRealization(S);
+  const beAdopt = breakEvenAdoption(S);
+
+  renderKpis(S, res, mc, beReal, beAdopt);
+  drawCash(document.getElementById("chartCash"), res, mc);
+  drawTornado(document.getElementById("chartTornado"), torn);
+  drawMc(document.getElementById("chartMc"), mc);
+
+  // legenda i nota rozkładu — pokazuj tylko kategorie, które faktycznie występują
+  const anyNeg = mc.npvs[0] < 0, anyPos = mc.npvs[MC_N - 1] > 0;
+  document.getElementById("legMcNeg").hidden = !anyNeg;
+  const note = document.getElementById("mcNote");
+  if (!anyNeg) {
+    note.style.color = "var(--good)";
+    note.textContent = "Wszystkie przebiegi dodatnie — przy tych założeniach zero leży poza zakresem wykresu. "
+      + "Ryzyko nie tkwi w wielkości efektu, tylko w samych założeniach: sprawdź próg realizacji i wykres tornado.";
+  } else if (!anyPos) {
+    note.style.color = "var(--bad)";
+    note.textContent = "Wszystkie przebiegi ujemne — przy tych założeniach wdrożenie nie zwraca się w żadnym wariancie.";
+  } else {
+    note.style.color = "var(--ink-3)";
+    note.textContent = `Udział przebiegów ujemnych: ${pct(100 - mc.pPositive)}.`;
+  }
+  drawProc(document.getElementById("chartProc"), S, res);
+
+  // tabele
+  const tCash = document.getElementById("tblCash");
+  tCash.innerHTML = "";
+  tCash.appendChild(table(
+    ["Mies.", "Adopcja", "Godziny", "Wartość netto", "Koszt", "Przepływ", "Skum. zdysk.", "P10", "P90"],
+    res.rows.map((r, i) => [
+      r.m, pct(r.adoption * 100), nf0.format(Math.round(r.hours)),
+      pln(r.value), pln(r.cost), pln(r.net), pln(r.cumDisc),
+      pln(mc.band[i].p10), pln(mc.band[i].p90),
+    ])
+  ));
+
+  const tTorn = document.getElementById("tblTorn");
+  tTorn.innerHTML = "";
+  tTorn.appendChild(table(
+    ["Parametr", "Wartość niska", "Δ NPV", "Wartość wysoka", "Δ NPV", "Rozpiętość"],
+    torn.map(d => [d.label, d.loTxt, pln(d.low), d.hiTxt, pln(d.high), pln(d.span)])
+  ));
+
+  const tMc = document.getElementById("tblMc");
+  tMc.innerHTML = "";
+  const qs = [0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95];
+  tMc.appendChild(table(
+    ["Percentyl", "NPV"],
+    qs.map(q => ["P" + Math.round(q * 100), pln(mc.npvs[Math.floor(q * MC_N)])])
+      .concat([["Prawdopodobieństwo NPV > 0", pct(mc.pPositive)]])
+  ));
+
+  const tProc = document.getElementById("tblProc");
+  tProc.innerHTML = "";
+  const capH = S.headcount * S.hoursMonth, ad = S.adoption / 100, rz = S.realization / 100;
+  tProc.appendChild(table(
+    ["Proces", "Udział czasu", "Efekt netto na zadaniu", "Godziny / rok", "Wartość / rok"],
+    PROCESSES.map((p, i) => {
+      const hrs = capH * ad * per[i] * 12;
+      return [
+        p.label, pct(S["share_" + p.key]),
+        nf1.format(S["raw_" + p.key] / 100 * (1 - S["verify_" + p.key] / 100) * (1 - S.novelty / 100) * 100) + "%",
+        nf0.format(Math.round(hrs)), pln(hrs * S.hourlyCost * rz),
+      ];
+    })
+  ));
+}
+
+/* ============================================================
+   12. INICJALIZACJA
+   ============================================================ */
+buildProcessFields();
+Object.keys(S).forEach(bind);
+document.getElementById("mcCountLabel").textContent = nf0.format(MC_N);
+
+document.getElementById("btnReset").addEventListener("click", () => {
+  Object.assign(S, DEFAULTS); syncInputs(); render();
+});
+document.getElementById("btnPess").addEventListener("click", () => {
+  Object.assign(S, DEFAULTS, PRESETS.pess); syncInputs(); render();
+});
+document.getElementById("btnOpt").addEventListener("click", () => {
+  Object.assign(S, DEFAULTS, PRESETS.opt); syncInputs(); render();
+});
+
+document.querySelectorAll(".tbl-toggle").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const t = document.getElementById(btn.dataset.tbl);
+    t.hidden = !t.hidden;
+    btn.textContent = t.hidden ? "Pokaż tabelę" : "Ukryj tabelę";
+  });
+});
+
+// motyw
+const themeBtn = document.getElementById("themeBtn");
+const MODES = ["auto", "light", "dark"];
+const LABELS = { auto: "Motyw: auto", light: "Motyw: jasny", dark: "Motyw: ciemny" };
+let mode = 0;
+themeBtn.addEventListener("click", () => {
+  mode = (mode + 1) % 3;
+  const m = MODES[mode];
+  if (m === "auto") document.documentElement.removeAttribute("data-theme");
+  else document.documentElement.setAttribute("data-theme", m);
+  themeBtn.textContent = LABELS[m];
+  render();
+});
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+  if (MODES[mode] === "auto") render();
+});
+
+let resizeTimer = null;
+window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(render, 160); });
+
+render();
+})();
+</script>
