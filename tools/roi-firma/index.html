@@ -1,0 +1,1650 @@
+<title>Kalkulator ROI — wdrożenie Claude w firmie komercyjnej</title>
+
+<style>
+/* ============================================================
+   TOKENY — ta sama rodzina wizualna co kalkulator dla Futur Lab.
+   Palety serii zwalidowane skryptem validate_palette.js:
+     light @ #f6f7f9 — PASS (contrast WARN → etykiety bezpośrednie + tabele)
+     dark  @ #14181f — PASS (wszystkie testy)
+   ============================================================ */
+:root {
+  color-scheme: light;
+  --ground: #f6f7f9; --ground-sunk: #eceff3; --panel: #ffffff;
+  --rule: #d3d9e0; --rule-strong: #aeb7c2;
+  --ink: #141a22; --ink-2: #4a5560; --ink-3: #77828e;
+  --accent: #1c5cab; --accent-soft: rgba(28,92,171,.10); --accent-line: rgba(28,92,171,.30);
+  --good: #15803d; --warn: #b45309; --bad: #b91c1c;
+  --good-soft: rgba(21,128,61,.10); --warn-soft: rgba(180,83,9,.10); --bad-soft: rgba(185,28,28,.10);
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+
+  --font-data: ui-monospace, "SF Mono", SFMono-Regular, "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --font-prose: "Iowan Old Style", Charter, "Bitstream Charter", "Source Serif Pro", Georgia, serif;
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px;
+  --sp-5: 24px; --sp-6: 32px; --sp-7: 48px; --sp-8: 72px;
+  --measure: 68ch;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --ground: #14181f; --ground-sunk: #0e1116; --panel: #1a1f28;
+    --rule: #2b323d; --rule-strong: #414b58;
+    --ink: #eef1f5; --ink-2: #a5b0bd; --ink-3: #78838f;
+    --accent: #3987e5; --accent-soft: rgba(57,135,229,.14); --accent-line: rgba(57,135,229,.38);
+    --good: #35b365; --warn: #d99320; --bad: #e15554;
+    --good-soft: rgba(53,179,101,.14); --warn-soft: rgba(217,147,32,.14); --bad-soft: rgba(225,85,84,.14);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #14181f; --ground-sunk: #0e1116; --panel: #1a1f28;
+  --rule: #2b323d; --rule-strong: #414b58;
+  --ink: #eef1f5; --ink-2: #a5b0bd; --ink-3: #78838f;
+  --accent: #3987e5; --accent-soft: rgba(57,135,229,.14); --accent-line: rgba(57,135,229,.38);
+  --good: #35b365; --warn: #d99320; --bad: #e15554;
+  --good-soft: rgba(53,179,101,.14); --warn-soft: rgba(217,147,32,.14); --bad-soft: rgba(225,85,84,.14);
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --ground: #f6f7f9; --ground-sunk: #eceff3; --panel: #ffffff;
+  --rule: #d3d9e0; --rule-strong: #aeb7c2;
+  --ink: #141a22; --ink-2: #4a5560; --ink-3: #77828e;
+  --accent: #1c5cab; --accent-soft: rgba(28,92,171,.10); --accent-line: rgba(28,92,171,.30);
+  --good: #15803d; --warn: #b45309; --bad: #b91c1c;
+  --good-soft: rgba(21,128,61,.10); --warn-soft: rgba(180,83,9,.10); --bad-soft: rgba(185,28,28,.10);
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+}
+
+body { background: var(--ground); color: var(--ink); font-family: var(--font-ui); font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+* { box-sizing: border-box; }
+.wrap { max-width: 1420px; margin: 0 auto; padding: 0 var(--sp-5); }
+@media (max-width: 640px) { .wrap { padding: 0 var(--sp-4); } }
+a { color: var(--accent); text-underline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+
+.eyebrow { font-family: var(--font-data); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); font-weight: 500; }
+h1,h2,h3,h4 { font-family: var(--font-prose); font-weight: 600; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(30px, 4.4vw, 50px); line-height: 1.08; letter-spacing: -.015em; }
+h2 { font-size: clamp(23px, 2.6vw, 31px); line-height: 1.18; letter-spacing: -.01em; }
+h3 { font-size: 19px; line-height: 1.3; }
+h4 { font-size: 16px; line-height: 1.35; font-family: var(--font-ui); font-weight: 650; }
+
+/* MASZTOWNICA */
+.masthead { border-bottom: 1px solid var(--rule-strong); padding-top: var(--sp-6); }
+.masthead-grid { display: grid; gap: var(--sp-5); grid-template-columns: minmax(0,1fr) auto; align-items: start; }
+@media (max-width: 860px) { .masthead-grid { grid-template-columns: 1fr; } }
+.masthead h1 { margin-top: var(--sp-3); max-width: 22ch; }
+.masthead .lede { font-family: var(--font-prose); font-size: 18px; line-height: 1.55; color: var(--ink-2); max-width: 60ch; margin-top: var(--sp-4); }
+.theme-toggle { font-family: var(--font-data); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; background: transparent; border: 1px solid var(--rule-strong); color: var(--ink-2); padding: 7px 12px; border-radius: 2px; cursor: pointer; }
+.theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+.spec-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); border-top: 1px solid var(--rule); margin-top: var(--sp-6); }
+.spec-strip div { padding: var(--sp-3) var(--sp-4) var(--sp-4); border-right: 1px solid var(--rule); }
+.spec-strip div:first-child { padding-left: 0; }
+.spec-strip div:last-child { border-right: 0; }
+.spec-strip dt { font-family: var(--font-data); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
+.spec-strip dd { margin: var(--sp-1) 0 0; font-family: var(--font-data); font-size: 14px; color: var(--ink); }
+
+.tocbar { position: sticky; top: 0; z-index: 40; background: var(--ground); border-bottom: 1px solid var(--rule); backdrop-filter: saturate(140%) blur(6px); }
+.tocbar ul { display: flex; gap: var(--sp-5); list-style: none; margin: 0; padding: 0; overflow-x: auto; }
+.tocbar a { display: block; padding: 12px 0; font-family: var(--font-data); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); text-decoration: none; white-space: nowrap; border-bottom: 2px solid transparent; }
+.tocbar a:hover { color: var(--accent); border-bottom-color: var(--accent-line); }
+
+section { padding: var(--sp-8) 0; border-bottom: 1px solid var(--rule); }
+.sec-head { margin-bottom: var(--sp-6); }
+.sec-head h2 { margin-top: var(--sp-2); }
+.sec-head p { font-family: var(--font-prose); color: var(--ink-2); max-width: var(--measure); margin: var(--sp-3) 0 0; font-size: 17px; }
+.prose { font-family: var(--font-prose); font-size: 17px; line-height: 1.68; max-width: var(--measure); }
+.prose p { margin: 0 0 var(--sp-4); }
+.prose ul, .prose ol { margin: 0 0 var(--sp-4); padding-left: 1.3em; }
+.prose li { margin-bottom: var(--sp-2); }
+.prose h3 { margin: var(--sp-6) 0 var(--sp-3); }
+code { font-family: var(--font-data); font-size: .88em; background: var(--ground-sunk); padding: 1px 5px; border-radius: 2px; border: 1px solid var(--rule); }
+
+/* WARSZTAT */
+.workbench { display: grid; grid-template-columns: 350px minmax(0,1fr); gap: var(--sp-6); align-items: start; }
+@media (max-width: 1120px) { .workbench { grid-template-columns: 1fr; } }
+.rail { position: sticky; top: 56px; max-height: calc(100vh - 76px); overflow-y: auto; padding-right: var(--sp-3); }
+@media (max-width: 1120px) { .rail { position: static; max-height: none; overflow: visible; padding-right: 0; } }
+.rail::-webkit-scrollbar { width: 8px; }
+.rail::-webkit-scrollbar-thumb { background: var(--rule-strong); border-radius: 4px; }
+
+details.module { border: 1px solid var(--rule); border-radius: 3px; margin-bottom: var(--sp-3); background: var(--panel); }
+details.module > summary { cursor: pointer; list-style: none; padding: var(--sp-3) var(--sp-4); display: flex; align-items: baseline; gap: var(--sp-3); font-family: var(--font-data); font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--ink); font-weight: 600; }
+details.module > summary::-webkit-details-marker { display: none; }
+details.module > summary::after { content: "+"; margin-left: auto; color: var(--ink-3); font-size: 15px; }
+details.module[open] > summary::after { content: "−"; }
+details.module[open] > summary { border-bottom: 1px solid var(--rule); }
+details.module > summary .tag { font-size: 10px; color: var(--accent); border: 1px solid var(--accent-line); padding: 1px 5px; border-radius: 2px; letter-spacing: .08em; }
+.module-body { padding: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-4); }
+.module-note { font-size: 12.5px; line-height: 1.5; color: var(--ink-2); margin: 0; }
+.module-note.flag { border-left: 2px solid var(--warn); background: var(--warn-soft); padding: var(--sp-2) var(--sp-3); }
+
+.field label { display: block; font-size: 12.5px; font-weight: 600; color: var(--ink); margin-bottom: 2px; }
+.field .hint { display: block; font-size: 11.5px; color: var(--ink-3); line-height: 1.4; margin-bottom: var(--sp-2); }
+.field .row { display: grid; grid-template-columns: 1fr 88px; gap: var(--sp-3); align-items: center; }
+.field .row.solo { grid-template-columns: 1fr; }
+
+input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 20px; background: transparent; cursor: pointer; }
+input[type="range"]::-webkit-slider-runnable-track { height: 3px; background: var(--rule-strong); border-radius: 2px; }
+input[type="range"]::-moz-range-track { height: 3px; background: var(--rule-strong); border-radius: 2px; }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 15px; height: 15px; margin-top: -6px; background: var(--accent); border: 2px solid var(--panel); border-radius: 50%; box-shadow: 0 0 0 1px var(--accent); }
+input[type="range"]::-moz-range-thumb { width: 13px; height: 13px; background: var(--accent); border: 2px solid var(--panel); border-radius: 50%; box-shadow: 0 0 0 1px var(--accent); }
+input[type="number"], input[type="text"], select { width: 100%; font-family: var(--font-data); font-variant-numeric: tabular-nums; font-size: 13px; padding: 6px 8px; background: var(--ground); border: 1px solid var(--rule-strong); border-radius: 2px; color: var(--ink); }
+select, input[type="text"] { font-family: var(--font-ui); }
+input:focus, select:focus { border-color: var(--accent); }
+
+.switch { display: flex; align-items: center; gap: var(--sp-3); font-size: 13px; font-weight: 600; cursor: pointer; }
+.switch input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+
+.rail-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-bottom: var(--sp-3); }
+.btn { font-family: var(--font-data); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 8px 12px; border-radius: 2px; cursor: pointer; border: 1px solid var(--rule-strong); background: var(--panel); color: var(--ink-2); }
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { filter: brightness(1.1); color: #fff; }
+
+/* WYNIKI */
+.results { display: flex; flex-direction: column; gap: var(--sp-6); min-width: 0; }
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(206px,1fr)); border: 1px solid var(--rule-strong); border-radius: 3px; overflow: hidden; }
+.kpi { padding: var(--sp-4); border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); background: var(--panel); }
+.kpi dt { font-family: var(--font-data); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
+.kpi dd { margin: var(--sp-2) 0 0; font-family: var(--font-data); font-variant-numeric: tabular-nums; font-size: clamp(19px,1.8vw,25px); line-height: 1.15; letter-spacing: -.025em; white-space: nowrap; }
+.kpi .sub { display: block; font-size: 11.5px; color: var(--ink-2); margin-top: var(--sp-2); }
+.kpi .pill { display: inline-block; font-family: var(--font-data); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; padding: 2px 6px; border-radius: 2px; margin-top: var(--sp-2); }
+.pill.good { background: var(--good-soft); color: var(--good); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.bad { background: var(--bad-soft); color: var(--bad); }
+
+.figure { border: 1px solid var(--rule); border-radius: 3px; background: var(--panel); }
+.figure-head { padding: var(--sp-4) var(--sp-4) var(--sp-3); border-bottom: 1px solid var(--rule); display: flex; gap: var(--sp-4); align-items: flex-start; flex-wrap: wrap; }
+.figure-head .t { flex: 1 1 260px; min-width: 0; }
+.figure-head h3 { font-family: var(--font-ui); font-size: 15px; font-weight: 650; }
+.figure-head p { margin: var(--sp-2) 0 0; font-size: 13px; color: var(--ink-2); line-height: 1.5; max-width: 66ch; }
+.figure-body { padding: var(--sp-4); overflow-x: auto; }
+.figure-body svg { width: 100%; height: auto; min-width: 600px; }
+.figure-foot { padding: var(--sp-3) var(--sp-4); border-top: 1px solid var(--rule); font-size: 12px; color: var(--ink-3); }
+.legend { display: flex; flex-wrap: wrap; gap: var(--sp-4); font-family: var(--font-data); font-size: 11.5px; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.swatch { width: 11px; height: 11px; border-radius: 2px; flex: none; }
+.swatch.line { height: 3px; border-radius: 1px; }
+svg { display: block; max-width: 100%; }
+svg text { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+
+/* PORTFEL DZIAŁÓW — centralny komponent tego narzędzia */
+.portfolio { border: 1px solid var(--rule-strong); border-radius: 3px; background: var(--panel); }
+.portfolio-head { padding: var(--sp-4) var(--sp-5); border-bottom: 1px solid var(--rule-strong); display: flex; gap: var(--sp-4); align-items: flex-start; flex-wrap: wrap; }
+.portfolio-head .t { flex: 1 1 320px; min-width: 0; }
+.portfolio-head h3 { font-family: var(--font-ui); font-size: 16px; font-weight: 650; }
+.portfolio-head p { margin: var(--sp-2) 0 0; font-size: 13px; color: var(--ink-2); line-height: 1.5; max-width: 78ch; }
+.portfolio-scroll { overflow-x: auto; }
+table.dept { width: 100%; border-collapse: collapse; min-width: 1000px; font-family: var(--font-data); font-variant-numeric: tabular-nums; font-size: 12.5px; }
+table.dept th { padding: 9px 8px; text-align: right; font-size: 10px; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); font-weight: 500; border-bottom: 1px solid var(--rule-strong); white-space: nowrap; vertical-align: bottom; line-height: 1.3; }
+table.dept th:first-child { text-align: left; }
+table.dept td { padding: 5px 6px; border-bottom: 1px solid var(--rule); text-align: right; }
+table.dept td:first-child { text-align: left; }
+/* nazwa działu przypięta — to kolumna identyfikująca wiersz, musi zostać w kadrze */
+table.dept th:first-child, table.dept td:first-child {
+  position: sticky; left: 0; z-index: 2;
+  background: var(--panel); border-right: 1px solid var(--rule-strong);
+}
+table.dept tbody tr:hover td:first-child { background: var(--ground-sunk); }
+table.dept tbody tr:hover { background: var(--ground-sunk); }
+table.dept input[type="number"] { width: 100%; min-width: 58px; padding: 5px 6px; text-align: right; }
+table.dept input[type="text"] { width: 100%; min-width: 150px; padding: 5px 8px; font-size: 12.5px; font-weight: 600; }
+table.dept td.out { color: var(--ink); font-weight: 600; white-space: nowrap; padding-left: 12px; }
+table.dept td.out.neg { color: var(--bad); }
+table.dept td.out.pos { color: var(--good); }
+table.dept tfoot td { border-top: 1px solid var(--rule-strong); border-bottom: 0; font-weight: 700; padding: 10px 6px; color: var(--ink); }
+.rm { background: none; border: 1px solid var(--rule); color: var(--ink-3); width: 24px; height: 24px; border-radius: 2px; cursor: pointer; font-size: 14px; line-height: 1; }
+.rm:hover { border-color: var(--bad); color: var(--bad); }
+.portfolio-foot { padding: var(--sp-3) var(--sp-5); border-top: 1px solid var(--rule); display: flex; gap: var(--sp-3); align-items: center; flex-wrap: wrap; font-size: 12px; color: var(--ink-3); }
+
+.tbl-toggle { font-family: var(--font-data); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; background: none; border: 0; color: var(--accent); cursor: pointer; padding: 0; }
+table.data { width: 100%; border-collapse: collapse; font-family: var(--font-data); font-variant-numeric: tabular-nums; font-size: 12.5px; }
+table.data th, table.data td { padding: 6px 10px; text-align: right; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+table.data th { color: var(--ink-3); font-weight: 500; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; border-bottom-color: var(--rule-strong); }
+table.data td:first-child, table.data th:first-child { text-align: left; }
+.tbl-scroll { max-height: 340px; overflow: auto; }
+
+.tip { position: fixed; z-index: 90; pointer-events: none; opacity: 0; background: var(--panel); border: 1px solid var(--rule-strong); border-radius: 3px; padding: var(--sp-2) var(--sp-3); font-family: var(--font-data); font-size: 12px; box-shadow: 0 6px 22px rgba(0,0,0,.16); transition: opacity .1s linear; max-width: 280px; }
+.tip .tip-t { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 3px; }
+.tip .tip-r { display: flex; justify-content: space-between; gap: var(--sp-4); }
+.tip .tip-r em { font-style: normal; color: var(--ink-2); }
+
+.callout { border: 1px solid var(--rule-strong); border-left: 3px solid var(--accent); border-radius: 3px; padding: var(--sp-4) var(--sp-5); background: var(--panel); max-width: var(--measure); margin: var(--sp-5) 0; }
+.callout.warn { border-left-color: var(--warn); }
+.callout.bad { border-left-color: var(--bad); }
+.callout .eyebrow { margin-bottom: var(--sp-2); display: block; }
+.callout p { font-family: var(--font-prose); font-size: 16px; line-height: 1.6; margin: 0 0 var(--sp-3); }
+.callout p:last-child { margin-bottom: 0; }
+
+.phases { list-style: none; padding: 0; margin: var(--sp-5) 0 0; border-top: 1px solid var(--rule); }
+.phases > li { display: grid; grid-template-columns: 100px minmax(0,1fr); gap: var(--sp-5); padding: var(--sp-5) 0; border-bottom: 1px solid var(--rule); }
+@media (max-width: 700px) { .phases > li { grid-template-columns: 1fr; gap: var(--sp-2); } }
+.phases .when { font-family: var(--font-data); font-size: 12px; color: var(--accent); letter-spacing: .04em; padding-top: 3px; }
+.phases h4 { margin-bottom: var(--sp-2); }
+.phases p { margin: 0 0 var(--sp-3); font-family: var(--font-prose); font-size: 16px; line-height: 1.6; color: var(--ink-2); max-width: 62ch; }
+.phases ul { margin: 0; padding-left: 1.2em; font-size: 14.5px; color: var(--ink-2); }
+.phases ul li { margin-bottom: 5px; }
+
+.grid-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(275px,1fr)); gap: var(--sp-4); margin-top: var(--sp-5); }
+.card { border: 1px solid var(--rule); border-radius: 3px; padding: var(--sp-4) var(--sp-5); background: var(--panel); }
+.card h4 { margin-bottom: var(--sp-2); }
+.card p { margin: 0; font-size: 14.5px; line-height: 1.6; color: var(--ink-2); }
+.card .eyebrow { display: block; margin-bottom: var(--sp-2); }
+
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 3px; margin: var(--sp-5) 0; background: var(--panel); }
+table.doc { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 640px; }
+table.doc th, table.doc td { padding: 11px 14px; text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; line-height: 1.5; }
+table.doc th { font-family: var(--font-data); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); font-weight: 500; border-bottom-color: var(--rule-strong); }
+table.doc tbody tr:last-child td { border-bottom: 0; }
+table.doc td.n { font-family: var(--font-data); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.checklist { list-style: none; padding: 0; margin: var(--sp-4) 0 0; max-width: var(--measure); }
+.checklist li { display: grid; grid-template-columns: 20px 1fr; gap: var(--sp-3); padding: var(--sp-3) 0; border-bottom: 1px solid var(--rule); font-size: 15px; line-height: 1.55; }
+.checklist li::before { content: "☐"; font-family: var(--font-data); color: var(--accent); font-size: 15px; }
+
+footer { padding: var(--sp-7) 0 var(--sp-8); }
+@media (prefers-reduced-motion: reduce) { * { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+</style>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="masthead-grid">
+      <div>
+        <span class="eyebrow">Narzędzie pomiarowe · v1.0 · lipiec 2026</span>
+        <h1>Kalkulator ROI wdrożenia Claude w&nbsp;firmie komercyjnej</h1>
+        <p class="lede">
+          Model portfelowy: każdy dział liczony osobno, bo ich profile zwrotu różnią się
+          o rząd wielkości. Odpowiada na pytania <em>gdzie wdrażać najpierw</em>,
+          <em>ile to jest warte</em> i <em>jak sprawdzić, czy się udało</em> —
+          z jawnie wyliczoną niepewnością zamiast pojedynczej liczby.
+        </p>
+      </div>
+      <button class="theme-toggle" id="themeBtn" type="button">Motyw: auto</button>
+    </div>
+    <dl class="spec-strip">
+      <div><dt>Model</dt><dd>Portfelowy</dd></div>
+      <div><dt>Waluta</dt><dd>PLN</dd></div>
+      <div><dt>Metoda</dt><dd>DCF + Monte Carlo</dd></div>
+      <div><dt>Plan pomiaru</dt><dd>Rollout losowany</dd></div>
+      <div><dt>Iteracje symulacji</dt><dd class="num" id="mcCountLabel">4 000</dd></div>
+    </dl>
+  </div>
+</header>
+
+<nav class="tocbar" aria-label="Spis treści">
+  <div class="wrap">
+    <ul>
+      <li><a href="#kalkulator">Kalkulator</a></li>
+      <li><a href="#interpretacja">Jak czytać wynik</a></li>
+      <li><a href="#protokol">Protokół pomiaru</a></li>
+      <li><a href="#pulapki">Pułapki</a></li>
+      <li><a href="#ryzyka">Ryzyka</a></li>
+      <li><a href="#checklisty">Checklisty</a></li>
+      <li><a href="#zalozenia">Założenia</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<section id="kalkulator">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">Moduł 1</span>
+      <h2>Model finansowy</h2>
+      <p>
+        Zacznij od wybrania typu firmy — to podstawi strukturę działów, którą potem edytujesz.
+        Wszystkie wartości domyślne są <strong>założeniami wstępnymi, nie pomiarami</strong>.
+        Wykres tornado pokaże, które z nich w ogóle warto mierzyć.
+      </p>
+    </div>
+
+    <div class="workbench">
+      <aside class="rail" aria-label="Parametry modelu">
+        <div class="rail-actions">
+          <button class="btn primary" id="btnReset" type="button">Reset</button>
+          <button class="btn" id="btnPess" type="button">Ostrożny</button>
+          <button class="btn" id="btnOpt" type="button">Ambitny</button>
+        </div>
+
+        <details class="module" open>
+          <summary>A · Profil firmy</summary>
+          <div class="module-body">
+            <div class="field">
+              <label for="preset">Typ firmy</label>
+              <span class="hint">Podstawia strukturę działów i typowe profile. Każdą wartość możesz potem nadpisać w tabeli obok.</span>
+              <select id="preset">
+                <option value="services">Usługi B2B / software house / agencja</option>
+                <option value="saas">Produkt / SaaS</option>
+                <option value="ecom">E-commerce / handel / marketing</option>
+                <option value="mfg">Produkcja / przemysł / logistyka</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="hoursMonth">Godziny pracy / etat / miesiąc</label>
+              <span class="hint">8&nbsp;h × ~19 dni roboczych netto po urlopach i absencjach.</span>
+              <div class="row"><input type="range" id="hoursMonth_r" min="100" max="180" step="2"><input type="number" id="hoursMonth" min="100" max="180" step="2"></div>
+            </div>
+            <div class="field">
+              <label for="rampMonths">Czas dojścia do pełnej adopcji (mies.)</label>
+              <div class="row"><input type="range" id="rampMonths_r" min="1" max="18" step="1"><input type="number" id="rampMonths" min="1" max="18" step="1"></div>
+            </div>
+            <div class="field">
+              <label for="novelty">Dyskonto efektu nowości (%)</label>
+              <span class="hint">O ile obniżasz wynik z pilotażu, bo część efektu to entuzjazm i dobór najłatwiejszych zadań.</span>
+              <div class="row"><input type="range" id="novelty_r" min="0" max="50" step="5"><input type="number" id="novelty" min="0" max="50" step="5"></div>
+            </div>
+          </div>
+        </details>
+
+        <details class="module" open>
+          <summary>B · Strona przychodowa <span class="tag">opcjonalne</span></summary>
+          <div class="module-body">
+            <label class="switch"><input type="checkbox" id="salesOn"> Uwzględnij wzrost sprzedaży</label>
+            <p class="module-note flag">
+              To najbardziej spekulacyjna część modelu. Wyłącz ją, jeśli budujesz uzasadnienie
+              dla działu finansowego — wynik bez przychodów jest pokazany osobno jako
+              „NPV tylko kosztowe” i broni się dużo łatwiej.
+            </p>
+            <div id="salesFields">
+              <div class="field">
+                <label for="offersMonth">Ofert / propozycji miesięcznie</label>
+                <div class="row"><input type="range" id="offersMonth_r" min="0" max="600" step="5"><input type="number" id="offersMonth" min="0" max="600" step="5"></div>
+              </div>
+              <div class="field">
+                <label for="offersUplift">Wzrost liczby ofert dzięki AI (%)</label>
+                <span class="hint">Ile więcej ofert zespół jest w stanie wypuścić przy tej samej obsadzie.</span>
+                <div class="row"><input type="range" id="offersUplift_r" min="0" max="60" step="1"><input type="number" id="offersUplift" min="0" max="60" step="1"></div>
+              </div>
+              <div class="field">
+                <label for="winRate">Wskaźnik wygranych (%)</label>
+                <div class="row"><input type="range" id="winRate_r" min="1" max="60" step="1"><input type="number" id="winRate" min="1" max="60" step="1"></div>
+              </div>
+              <div class="field">
+                <label for="dealValue">Średnia wartość kontraktu (PLN)</label>
+                <div class="row"><input type="range" id="dealValue_r" min="1000" max="400000" step="1000"><input type="number" id="dealValue" min="1000" max="400000" step="1000"></div>
+              </div>
+              <div class="field">
+                <label for="dealMargin">Marża kontrybucyjna (%)</label>
+                <span class="hint">Marża, nie przychód. Wpisanie przychodu zawyży wynik kilkukrotnie.</span>
+                <div class="row"><input type="range" id="dealMargin_r" min="1" max="90" step="1"><input type="number" id="dealMargin" min="1" max="90" step="1"></div>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <details class="module">
+          <summary>C · Koszty wdrożenia</summary>
+          <div class="module-body">
+            <div class="field">
+              <label for="pricePrem">Cena stanowiska Premium (USD/mies.)</label>
+              <div class="row solo"><input type="number" id="pricePrem" min="0" step="5"></div>
+            </div>
+            <div class="field">
+              <label for="priceStd">Cena stanowiska Standard (USD/mies.)</label>
+              <div class="row solo"><input type="number" id="priceStd" min="0" step="5"></div>
+            </div>
+            <div class="field">
+              <label for="premShare">Udział stanowisk Premium (%)</label>
+              <span class="hint">Reszta na planie podstawowym. Stanowiska liczone są dla osób realnie korzystających, nie dla całej firmy.</span>
+              <div class="row"><input type="range" id="premShare_r" min="0" max="100" step="5"><input type="number" id="premShare" min="0" max="100" step="5"></div>
+            </div>
+            <div class="field">
+              <label for="fx">Kurs USD/PLN</label>
+              <div class="row"><input type="range" id="fx_r" min="3" max="5" step="0.02"><input type="number" id="fx" min="3" max="5" step="0.02"></div>
+            </div>
+            <p class="module-note flag">
+              Ceny stanowisk zweryfikuj przed użyciem modelu. Cenniki się zmieniają, rozliczenie
+              roczne jest tańsze od miesięcznego, plany zespołowe mają minimalną liczbę stanowisk,
+              a przy większych wdrożeniach obowiązują warunki indywidualne.
+            </p>
+            <div class="field">
+              <label for="apiPerUser">Zużycie API i platformy (PLN / użytkownika / mies.)</label>
+              <span class="hint">Automatyzacje, integracje, praca wsadowa poza subskrypcją.</span>
+              <div class="row"><input type="range" id="apiPerUser_r" min="0" max="400" step="10"><input type="number" id="apiPerUser" min="0" max="400" step="10"></div>
+            </div>
+            <div class="field">
+              <label for="enablementFte">Zespół wdrożeniowy (etaty)</label>
+              <span class="hint">Enablement, biblioteka promptów, szkolenia, wsparcie. Po rozruchu spada do 40%. Przy 100+ osobach to nie jest koszt pomijalny.</span>
+              <div class="row"><input type="range" id="enablementFte_r" min="0" max="8" step="0.25"><input type="number" id="enablementFte" min="0" max="8" step="0.25"></div>
+            </div>
+            <div class="field">
+              <label for="enablementCost">Koszt etatu wdrożeniowego (PLN/mies.)</label>
+              <div class="row"><input type="range" id="enablementCost_r" min="5000" max="45000" step="1000"><input type="number" id="enablementCost" min="5000" max="45000" step="1000"></div>
+            </div>
+            <div class="field">
+              <label for="govMonthly">Governance i zgodność (PLN/mies.)</label>
+              <span class="hint">Nadzór nad użyciem, audyt, przeglądy bezpieczeństwa, polityki.</span>
+              <div class="row"><input type="range" id="govMonthly_r" min="0" max="40000" step="500"><input type="number" id="govMonthly" min="0" max="40000" step="500"></div>
+            </div>
+            <div class="field">
+              <label for="onboardHrs">Wdrożenie: godziny na osobę</label>
+              <div class="row"><input type="range" id="onboardHrs_r" min="0" max="40" step="1"><input type="number" id="onboardHrs" min="0" max="40" step="1"></div>
+            </div>
+            <div class="field">
+              <label for="setupCost">Integracje i konfiguracja (PLN, jednorazowo)</label>
+              <div class="row"><input type="range" id="setupCost_r" min="0" max="500000" step="5000"><input type="number" id="setupCost" min="0" max="500000" step="5000"></div>
+            </div>
+            <div class="field">
+              <label for="legalCost">Bezpieczeństwo, RODO, umowy (PLN, jednorazowo)</label>
+              <span class="hint">Analiza ryzyka, DPIA, aneksy do umów z klientami, przegląd zobowiązań o poufności.</span>
+              <div class="row"><input type="range" id="legalCost_r" min="0" max="300000" step="5000"><input type="number" id="legalCost" min="0" max="300000" step="5000"></div>
+            </div>
+            <div class="field">
+              <label for="measureCost">Koszt pomiaru (PLN, jednorazowo)</label>
+              <span class="hint">Instrumentacja, prowadzenie eksperymentu, analiza. Bez tego nie masz z czym pójść do zarządu.</span>
+              <div class="row"><input type="range" id="measureCost_r" min="0" max="300000" step="5000"><input type="number" id="measureCost" min="0" max="300000" step="5000"></div>
+            </div>
+          </div>
+        </details>
+
+        <details class="module">
+          <summary>D · Parametry finansowe</summary>
+          <div class="module-body">
+            <div class="field">
+              <label for="horizon">Horyzont analizy (miesiące)</label>
+              <div class="row"><input type="range" id="horizon_r" min="12" max="60" step="6"><input type="number" id="horizon" min="12" max="60" step="6"></div>
+            </div>
+            <div class="field">
+              <label for="discount">Stopa dyskontowa (% rocznie)</label>
+              <span class="hint">Koszt kapitału firmy. Zwykle 8–15%.</span>
+              <div class="row"><input type="range" id="discount_r" min="0" max="30" step="1"><input type="number" id="discount" min="0" max="30" step="1"></div>
+            </div>
+            <div class="field">
+              <label for="spread">Szerokość rozrzutu w symulacji (%)</label>
+              <span class="hint">Względna niepewność parametrów efektu. Im słabszy pomiar, tym szerzej.</span>
+              <div class="row"><input type="range" id="spread_r" min="10" max="70" step="5"><input type="number" id="spread" min="10" max="70" step="5"></div>
+            </div>
+          </div>
+        </details>
+      </aside>
+
+      <div class="results">
+        <dl class="kpi-grid" id="kpis"></dl>
+
+        <!-- PORTFEL DZIAŁÓW -->
+        <div class="portfolio">
+          <div class="portfolio-head">
+            <div class="t">
+              <h3>Portfel działów</h3>
+              <p>
+                Każdy wiersz liczony osobno. <strong>Czas kwalifikowany</strong> to udział pracy, którą
+                narzędzie w ogóle może wesprzeć — u operatora maszyny bliski zeru, u analityka bliski 80%.
+                <strong>Mnożnik</strong> to wartość odzyskanej godziny względem jej kosztu: 1,0 dla działu
+                kosztowego, 2,0–2,5 dla osób rozliczanych godzinowo u klienta.
+                <strong>Realizacja</strong> to część odzyskanych godzin, która faktycznie zamienia się w wartość.
+              </p>
+            </div>
+          </div>
+          <div class="portfolio-scroll">
+            <table class="dept">
+              <thead>
+                <tr>
+                  <th scope="col">Dział</th>
+                  <th scope="col">Osoby</th>
+                  <th scope="col">Koszt&nbsp;h<br>PLN</th>
+                  <th scope="col">Czas<br>kwalif.&nbsp;%</th>
+                  <th scope="col">Oszczęd-<br>ność&nbsp;%</th>
+                  <th scope="col">Wery-<br>fikacja&nbsp;%</th>
+                  <th scope="col">Adop-<br>cja&nbsp;%</th>
+                  <th scope="col">Mnoż-<br>nik</th>
+                  <th scope="col">Reali-<br>zacja&nbsp;%</th>
+                  <th scope="col">Wartość<br>/ rok</th>
+                  <th scope="col">Koszt<br>/ rok</th>
+                  <th scope="col">Netto<br>/ rok</th>
+                  <th scope="col"></th>
+                </tr>
+              </thead>
+              <tbody id="deptRows"></tbody>
+              <tfoot id="deptFoot"></tfoot>
+            </table>
+          </div>
+          <div class="portfolio-foot">
+            <button class="btn" id="btnAddDept" type="button">+ Dodaj dział</button>
+            <span id="deptSummary"></span>
+          </div>
+        </div>
+
+        <figure class="figure" style="margin:0">
+          <div class="figure-head">
+            <div class="t">
+              <h3>Netto roczne wg działu</h3>
+              <p>Wartość minus przypisany koszt licencji i platformy. Działy poniżej zera dopłacają do wdrożenia — to nie znaczy, że trzeba je odciąć, ale że trzeba wiedzieć, że tam nie ma zwrotu.</p>
+            </div>
+            <button class="tbl-toggle" data-tbl="tblDept" type="button">Pokaż tabelę</button>
+          </div>
+          <div class="figure-body"><div id="chartDept"></div></div>
+          <div id="tblDept" hidden></div>
+          <div class="figure-foot">
+            <div class="legend">
+              <span><i class="swatch" style="background:var(--s1)"></i> Netto dodatnie</span>
+              <span><i class="swatch" style="background:var(--bad)"></i> Netto ujemne</span>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="figure" style="margin:0">
+          <div class="figure-head">
+            <div class="t">
+              <h3>Skumulowany zdyskontowany przepływ netto</h3>
+              <p>Mediana z symulacji z pasmem P10–P90. Przecięcie z zerem to moment zwrotu. Szerokie pasmo obejmujące zero oznacza, że model nie rozstrzyga — i to też jest wynik.</p>
+            </div>
+            <button class="tbl-toggle" data-tbl="tblCash" type="button">Pokaż tabelę</button>
+          </div>
+          <div class="figure-body"><div id="chartCash"></div></div>
+          <div id="tblCash" hidden></div>
+          <div class="figure-foot">
+            <div class="legend">
+              <span><i class="swatch line" style="background:var(--accent)"></i> Mediana (P50)</span>
+              <span><i class="swatch" style="background:var(--accent-soft);border:1px solid var(--accent-line)"></i> Przedział P10–P90</span>
+              <span><i class="swatch line" style="background:var(--ink-3)"></i> Próg zwrotu</span>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="figure" style="margin:0">
+          <div class="figure-head">
+            <div class="t">
+              <h3>Wrażliwość NPV na parametry (tornado)</h3>
+              <p>Zmiana wartości bieżącej netto przy przesunięciu każdego parametru w dół i w górę zakresu. <strong>Parametry na górze mierz w pierwszej kolejności</strong> — reszta nie zmieni decyzji.</p>
+            </div>
+            <button class="tbl-toggle" data-tbl="tblTorn" type="button">Pokaż tabelę</button>
+          </div>
+          <div class="figure-body"><div id="chartTornado"></div></div>
+          <div id="tblTorn" hidden></div>
+          <div class="figure-foot">
+            <div class="legend">
+              <span><i class="swatch" style="background:var(--s1)"></i> Wartość niższa niż bazowa</span>
+              <span><i class="swatch" style="background:var(--bad)"></i> Wartość wyższa niż bazowa</span>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="figure" style="margin:0">
+          <div class="figure-head">
+            <div class="t">
+              <h3>Rozkład NPV — symulacja Monte Carlo</h3>
+              <p>Losowanie parametrów efektu z rozkładów trójkątnych. Interesuje cię nie środek rozkładu, tylko lewy ogon: jak zły jest zły scenariusz i jak często występuje.</p>
+            </div>
+            <button class="tbl-toggle" data-tbl="tblMc" type="button">Pokaż tabelę</button>
+          </div>
+          <div class="figure-body"><div id="chartMc"></div></div>
+          <div id="tblMc" hidden></div>
+          <div class="figure-foot">
+            <div class="legend">
+              <span><i class="swatch" style="background:var(--accent)"></i> NPV dodatnie</span>
+              <span id="legMcNeg" hidden><i class="swatch" style="background:var(--bad)"></i> NPV ujemne</span>
+              <span><i class="swatch line" style="background:var(--ink-3)"></i> P10 · P50 · P90</span>
+            </div>
+            <p id="mcNote" style="margin:var(--sp-2) 0 0;font-size:12px"></p>
+          </div>
+        </figure>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="interpretacja">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">Moduł 2</span>
+      <h2>Jak czytać ten wynik</h2>
+      <p>Cztery rzeczy, które decydują o tym, czy liczba z kalkulatora cokolwiek znaczy.</p>
+    </div>
+
+    <div class="prose">
+      <h3>1. Nie dziel przez całą firmę</h3>
+      <p>
+        Najczęstszy błąd w uzasadnieniach wdrożeń AI w firmach komercyjnych: wziąć oszczędność
+        zmierzoną na zespole inżynierskim i pomnożyć przez cały stan zatrudnienia.
+        W firmie produkcyjnej dwie trzecie ludzi pracuje na hali i ich <strong>czas kwalifikowany
+        jest bliski zeru</strong> — narzędzie nie ma czego u nich wspierać. Przełącz preset na
+        „Produkcja”, żeby zobaczyć, jak bardzo zmienia to rachunek: ten sam efekt na osobę,
+        zupełnie inne NPV.
+      </p>
+      <p>
+        Model liczy portfelowo właśnie dlatego. Wykres „netto wg działu” pokazuje zwykle to samo:
+        <strong>dwa, trzy działy niosą całe uzasadnienie</strong>, reszta jest neutralna albo dopłaca.
+        To jest mapa sekwencji wdrożenia, a nie powód, żeby resztę odciąć.
+      </p>
+
+      <h3>2. Realizacja wartości decyduje o wyniku bardziej niż oszczędność czasu</h3>
+      <p>
+        Zaoszczędzona godzina zamienia się w pieniądz tylko przez jeden z czterech kanałów.
+        Ustaw kolumnę „Realizacja” dla każdego działu na podstawie tego, który z nich
+        faktycznie tam działa — a nie tego, który brzmi najlepiej w prezentacji.
+      </p>
+    </div>
+
+    <div class="tbl-wrap">
+      <table class="doc">
+        <thead><tr><th>Kanał</th><th>Warunek, który musi być spełniony</th><th>Realizacja</th><th>Typowe działy</th></tr></thead>
+        <tbody>
+          <tr><td><b>Praca rozliczana u klienta</b></td><td>Istnieje popyt, a odzyskane godziny da się zafakturować. Ustaw mnożnik na stawka&nbsp;/&nbsp;koszt.</td><td class="n">60–85%</td><td>Konsultanci, zespoły projektowe, agencje</td></tr>
+          <tr><td><b>Uniknięcie kosztu</b></td><td>Był realny plan zatrudnienia lub zlecenia na zewnątrz, z którego rezygnujesz. Pokaż budżet albo ofertę.</td><td class="n">80–100%</td><td>Obsługa klienta, back office przy rosnącym wolumenie</td></tr>
+          <tr><td><b>Wzrost przepustowości</b></td><td>Jest kolejka wartościowej pracy, której nie robiliście z braku mocy — i zostaje podjęta.</td><td class="n">45–75%</td><td>Marketing, sprzedaż, rozwój oprogramowania</td></tr>
+          <tr><td><b>Rozproszenie</b></td><td>Brak popytu na dodatkową moc. Praca rozszerza się, by wypełnić dostępny czas.</td><td class="n">0%</td><td>Domyślny stan wszędzie tam, gdzie nie wskażesz żadnego z powyższych</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="prose">
+      <p>
+        Test praktyczny: jeśli dla danego działu nie umiesz wskazać kanału i dowodu,
+        ustaw realizację na <strong>25%</strong> i sprawdź, czy wdrożenie nadal się broni.
+        Jeśli tak — masz mocny argument. Jeśli nie — masz wynik zależny od założenia,
+        którego nie potrafisz obronić.
+      </p>
+
+      <h3>3. Pokaż dwie liczby: z przychodami i bez</h3>
+      <p>
+        Strona przychodowa — więcej ofert, więcej wygranych kontraktów — jest najbardziej
+        spekulacyjną częścią każdego takiego modelu i pierwszą, którą dział finansowy podważy.
+        Dlatego kalkulator raportuje osobno <strong>NPV tylko kosztowe</strong>.
+        Jeśli wdrożenie broni się już na samych oszczędnościach, przychód jest bonusem,
+        a nie warunkiem. Jeśli broni się wyłącznie dzięki przychodom — to jest zakład
+        na wzrost sprzedaży, nie projekt efektywnościowy, i tak trzeba go nazwać.
+      </p>
+
+      <h3>4. Próg opłacalności zamiast pojedynczej liczby</h3>
+      <p>
+        Kalkulator wylicza minimalną realizację, przy której NPV wynosi zero. Ta liczba
+        jest odporna na twoje założenia o wielkości efektu — i to ją warto pokazać zarządowi.
+        Zdanie „zwraca się, jeśli jedna czwarta odzyskanych godzin trafi na pracę, na którą
+        i tak brakowało nam rąk” jest znacznie mocniejsze niż „NPV wynosi 3,2 mln”.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section id="protokol">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">Moduł 3</span>
+      <h2>Protokół pomiarowy</h2>
+      <p>
+        Przy 50+ osobach masz przewagę, której nie ma mały zespół: <strong>możesz zrobić
+        prawdziwy eksperyment z grupą kontrolną</strong> i uzyskać wynik, którego nikt
+        rozsądnie nie podważy. Poniżej plan, który to wykorzystuje.
+      </p>
+    </div>
+
+    <div class="callout">
+      <span class="eyebrow">Rachunek mocy statystycznej</span>
+      <p>
+        Wykrycie 20-procentowego skrócenia czasu zadania przy typowym rozrzucie czasów pracy
+        umysłowej (odchylenie na skali logarytmicznej ≈&nbsp;0,6) wymaga około
+        <strong>115 zadań na ramię</strong>. Po uwzględnieniu grupowania zadań w obrębie osoby
+        (efekt projektowy ≈&nbsp;2) rośnie to do <strong>~240 zadań na ramię</strong>.
+      </p>
+      <p>
+        Przy 30 osobach w każdej grupie to 8 zadań na osobę — <strong>wykonalne w 6–8 tygodni</strong>.
+        Dlatego w firmie tej wielkości rekomenduję projekt równoległy z losowaniem, a nie
+        pomiar „przed i po” na całej firmie. Losowanie usuwa najpoważniejszy zarzut wobec wyniku:
+        że efekt to sezonowość, faza projektu albo dobór entuzjastów.
+      </p>
+      <p>
+        <strong>Losuj w obrębie działu, nie między działami.</strong> Porównywanie działu
+        inżynierskiego z księgowością nie mierzy narzędzia, tylko różnicę między działami.
+      </p>
+    </div>
+
+    <ol class="phases">
+      <li>
+        <span class="when">Faza 0<br>tyg. −6 → 0</span>
+        <div>
+          <h4>Linia bazowa i wybór działów</h4>
+          <p>Bez tej fazy cała reszta jest bezwartościowa. Nie da się jej odtworzyć wstecz, a pamięć zespołu o tym, „ile to zajmowało wcześniej”, jest systematycznie zawyżona.</p>
+          <ul>
+            <li>Wybierz <b>2–3 działy o najwyższym potencjale</b> z wykresu „netto wg działu”. Nie zaczynaj od całej firmy.</li>
+            <li>Zdefiniuj <b>4–6 powtarzalnych typów zadań</b> na dział, z jasnym początkiem i końcem — oferta, zgłoszenie serwisowe, funkcja w produkcie, raport miesięczny, kampania.</li>
+            <li>Ustal <b>definicję ukończenia</b> dla każdego typu, inaczej „szybciej” będzie znaczyło „gorzej”.</li>
+            <li>Ściągnij dane, które już masz: CRM, system zgłoszeń, repozytorium kodu, system projektowy. Zwykle połowa linii bazowej jest już zapisana — nie trzeba jej zbierać od nowa.</li>
+            <li>Uruchom <b>metryki jakości</b>: liczba iteracji do akceptacji, reklamacje, poprawki po przeglądzie.</li>
+          </ul>
+        </div>
+      </li>
+      <li>
+        <span class="when">Faza 1<br>tyg. 1 → 8</span>
+        <div>
+          <h4>Eksperyment z losowaniem</h4>
+          <p>W każdym wybranym dziale losowo połowa osób dostaje dostęp, połowa nie. Losowanie, nie zgłoszenia — ochotnicy to najbardziej entuzjastyczna i najbardziej techniczna część zespołu, a wynik zmierzony na nich nie uogólnia się na resztę.</p>
+          <ul>
+            <li>Wspólne wdrożenie i biblioteka promptów dla grupy z dostępem.</li>
+            <li>Zbieranie danych identyczne w obu grupach.</li>
+            <li>Jasny komunikat: <b>grupa kontrolna dostanie narzędzie po 8 tygodniach.</b> Bez tego pojawi się poczucie niesprawiedliwości i presja na obchodzenie zasad.</li>
+            <li><b>Nie</b> analizuj wyników po dwóch tygodniach — zobaczysz efekt nowości i zinterpretujesz go jako efekt narzędzia.</li>
+            <li>Rejestruj <b>przypadki, w których narzędzie zawiodło</b>. Są warte więcej niż sukcesy: pokazują granicę stosowalności i realny narzut weryfikacji.</li>
+          </ul>
+        </div>
+      </li>
+      <li>
+        <span class="when">Faza 2<br>tyg. 9 → 12</span>
+        <div>
+          <h4>Analiza, krzyżowanie grup, decyzja</h4>
+          <p>Grupa kontrolna dostaje dostęp — a ty dostajesz drugi, niezależny pomiar tego samego efektu na innych ludziach. Jeśli oba wyniki się zgadzają, masz coś, czego nikt sensownie nie podważy.</p>
+          <ul>
+            <li>Policz różnicę między grupami z <b>przedziałem ufności</b>, nie samą wartością punktową.</li>
+            <li>Podstaw zmierzone wartości do kalkulatora i zwęź rozrzut w symulacji do rzeczywistej niepewności estymatora.</li>
+            <li>Sprawdź metryki zabezpieczające. Wzrost poprawek przy spadku czasu to <b>przerzucenie kosztu</b>, nie oszczędność.</li>
+            <li>Zestaw prognozę z fazy 0 z wynikiem. Rozbieżność jest kalibracją twojego osądu na kolejne wdrożenia.</li>
+          </ul>
+        </div>
+      </li>
+      <li>
+        <span class="when">Faza 3<br>mies. 4 → 12</span>
+        <div>
+          <h4>Skalowanie sterowane danymi</h4>
+          <p>Rozszerzasz na kolejne działy w kolejności wynikającej z pomiaru, a nie z tego, kto najgłośniej prosił.</p>
+          <ul>
+            <li>Każdy nowy dział dostaje własną, krótszą linię bazową — efekt nie przenosi się między funkcjami.</li>
+            <li>Kwartalny przegląd portfela stanowisk: <b>realokacja zamiast dokupowania</b>.</li>
+            <li>Ponów pomiar w dziale z fazy 1 po roku — sprawdź, czy efekt się utrzymał po opadnięciu entuzjazmu.</li>
+          </ul>
+        </div>
+      </li>
+    </ol>
+
+    <div class="prose"><h3>Zestaw metryk</h3></div>
+    <div class="tbl-wrap">
+      <table class="doc">
+        <thead><tr><th>Warstwa</th><th>Metryka</th><th>Po co</th></tr></thead>
+        <tbody>
+          <tr><td><b>Główna</b></td><td>Mediana czasu ukończenia zadania, wg typu i działu</td><td>Jedyna metryka wchodząca do modelu finansowego. Mediana, nie średnia — rozkłady czasów mają ciężki prawy ogon.</td></tr>
+          <tr><td><b>Uzupełniająca</b></td><td>Przepustowość: zamknięte zadania na osobę na tydzień</td><td>Weryfikuje realizację wartości. Jeśli czas na zadanie spada, a przepustowość stoi, odzyskane godziny nie trafiają nigdzie.</td></tr>
+          <tr><td><b>Uzupełniająca</b></td><td>Wskaźnik wykorzystania czasu rozliczanego (firmy usługowe)</td><td>Bezpośredni dowód, że odzyskane godziny trafiły na pracę fakturowaną. To jest ta liczba, która przekonuje dział finansowy.</td></tr>
+          <tr><td><b>Uzupełniająca</b></td><td>Czas cyklu od zapytania do oferty / od zgłoszenia do zamknięcia</td><td>Pomiar skrócenia cyklu — wartości, której model wycenia tylko pośrednio.</td></tr>
+          <tr><td><b>Zabezpieczająca</b></td><td>Wskaźnik poprawek i liczba iteracji do akceptacji</td><td>Wykrywa przerzucenie kosztu z wykonawcy na recenzenta. Zadanie „szybsze” o 30%, które wymaga dwóch dodatkowych rund przeglądu, jest wolniejsze.</td></tr>
+          <tr><td><b>Zabezpieczająca</b></td><td>Reklamacje, eskalacje, błędy wykryte przez klienta</td><td>Najważniejsza metryka w firmie komercyjnej. Błąd, który dotarł do klienta, kosztuje wielokrotnie więcej niż zaoszczędzone godziny.</td></tr>
+          <tr><td><b>Kontekstowa</b></td><td>Aktywne użycie tygodniowo na osobę, wg działu</td><td>Weryfikuje adopcję, nie efekt. Stanowisko bez logowań to czysty koszt — realokuj je.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="pulapki">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">Moduł 4</span>
+      <h2>Pułapki pomiaru</h2>
+      <p>Każda z nich systematycznie zawyża wynik. Występują razem i się mnożą.</p>
+    </div>
+    <div class="grid-cards">
+      <div class="card"><span class="eyebrow">Zawyża wynik</span><h4>Ekstrapolacja na całą firmę</h4><p>Efekt zmierzony na zespole inżynierskim pomnożony przez cały stan zatrudnienia. Najdroższy błąd w tej kategorii — potrafi zawyżyć rachunek kilkukrotnie. Licz portfelowo.</p></div>
+      <div class="card"><span class="eyebrow">Zawyża wynik</span><h4>Efekt nowości</h4><p>Pierwsze 4–6 tygodni to zawyżony pomiar: entuzjazm, dobór najwdzięczniejszych zadań, świadomość bycia obserwowanym. Mierz efekt trwały po 8+ tygodniach.</p></div>
+      <div class="card"><span class="eyebrow">Zawyża wynik</span><h4>Samoocena zamiast pomiaru</h4><p>Ankietowe „zaoszczędziłem 30% czasu” rozjeżdża się z pomiarem zwykle dwu-, trzykrotnie. Deklaracji używaj do wyboru procesów wartych mierzenia, nigdy jako danych do modelu.</p></div>
+      <div class="card"><span class="eyebrow">Zawyża wynik</span><h4>Dobór ochotników</h4><p>Grupa pilotażowa złożona z chętnych to najlepszy możliwy przypadek. Losuj przydział, inaczej ekstrapolujesz wynik entuzjastów na całą firmę.</p></div>
+      <div class="card"><span class="eyebrow">Zawyża wynik</span><h4>Przychód zamiast marży</h4><p>Wpisanie do modułu sprzedażowego wartości kontraktu zamiast marży kontrybucyjnej zawyża wynik kilkukrotnie. To najczęstszy błąd w tej części modelu.</p></div>
+      <div class="card"><span class="eyebrow">Zawyża wynik</span><h4>Przerzucenie kosztu</h4><p>Wykonawca oszczędza godzinę, recenzent traci dwie na wyłapywanie subtelnych błędów. Bez metryki liczby iteracji zobaczysz tylko dobrą połowę rachunku.</p></div>
+      <div class="card"><span class="eyebrow">Zeruje wynik</span><h4>Prawo Parkinsona</h4><p>Bez kolejki wartościowej pracy zaoszczędzony czas wypełnia się sam. Dlatego przepustowość i wykorzystanie czasu rozliczanego są metrykami obowiązkowymi.</p></div>
+      <div class="card"><span class="eyebrow">Psuje pomiar</span><h4>Prawo Goodharta</h4><p>Gdy „liczba zamkniętych zgłoszeń” stanie się miarą oceny, zgłoszenia zaczną się rozdrabniać. Nie wiąż tych metryk z oceną pracowniczą ani z premiami.</p></div>
+      <div class="card"><span class="eyebrow">Psuje pomiar</span><h4>Wyciek między grupami</h4><p>W eksperymencie z losowaniem grupa kontrolna zwykle prosi kolegów o pomoc. To zaniża zmierzoną różnicę. Zapytaj o to wprost w ankiecie końcowej i uwzględnij w interpretacji.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="ryzyka">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">Moduł 5</span>
+      <h2>Ryzyka pozafinansowe</h2>
+      <p>Poza modelem, ale nie poza decyzją. W firmie komercyjnej część z nich waży więcej niż NPV.</p>
+    </div>
+    <div class="tbl-wrap">
+      <table class="doc">
+        <thead><tr><th>Ryzyko</th><th>Dlaczego dotyczy firmy komercyjnej</th><th>Reakcja</th></tr></thead>
+        <tbody>
+          <tr><td><b>Dane klientów i zobowiązania umowne</b></td><td>Umowy o poufności i kontrakty z klientami korporacyjnymi bywają restrykcyjne wobec przetwarzania w usługach zewnętrznych. Naruszenie to ryzyko kar umownych i utraty kontraktu.</td><td>Przegląd umów <b>przed</b> startem, nie po. Klasyfikacja danych z jawnie wskazanymi kategoriami wykluczonymi. Aneksy tam, gdzie potrzebne.</td></tr>
+          <tr><td><b>Jakość wobec klienta</b></td><td>Błąd w ofercie, wycenie albo odpowiedzi serwisowej dociera bezpośrednio do klienta. Koszt to nie godziny, tylko kontrakt i reputacja.</td><td>Obowiązkowa weryfikacja wszystkiego, co wychodzi na zewnątrz. Kolumna „weryfikacja” w modelu ma być realna, nie życzeniowa.</td></tr>
+          <tr><td><b>Regulacje branżowe</b></td><td>W finansach, medycynie, sektorze publicznym i przy danych osobowych obowiązują wymogi dotyczące automatyzacji decyzji i rozliczalności.</td><td>Ustal, które procesy są objęte, zanim ktoś zacznie ich używać z narzędziem. Koszt tej analizy jest w module C.</td></tr>
+          <tr><td><b>Nierówna adopcja</b></td><td>Przy 100 stanowiskach 30 osób może generować cały efekt, a 70 sam koszt. Stanowisko bez logowań to czysta strata.</td><td>Śledź użycie na osobę i dział. Realokuj stanowiska zamiast dokupować. Nierówna adopcja to sygnał do zmiany szkolenia, nie do rezygnacji.</td></tr>
+          <tr><td><b>Uzależnienie od dostawcy</b></td><td>Procesy przebudowane wokół jednego narzędzia. Zmiana cennika lub warunków uderza w strukturę pracy, nie tylko w budżet.</td><td>Trzymaj prompty i wzorce pracy w repozytorium firmowym, w formie przenośnej. Podnieś cenę stanowiska w module C i sprawdź, czy NPV wciąż jest dodatnie.</td></tr>
+          <tr><td><b>Rozwój młodszych pracowników</b></td><td>Żmudne zadania są mechanizmem, przez który juniorzy budują kompetencje. Automatyzacja obniża koszt dziś i zdolności za trzy lata.</td><td>Wyznacz zadania rozwojowe wykonywane bez wsparcia narzędzia. To inwestycja, nie nieefektywność.</td></tr>
+          <tr><td><b>Reakcja zespołu</b></td><td>Wdrożenie zakomunikowane jako program oszczędnościowy uruchamia obronę stanowisk: zaniżone deklaracje, ciche bojkotowanie, wyciek do grupy kontrolnej.</td><td>Nazwij cel wprost i trzymaj się go. Odetnij metryki od oceny pracowniczej i powiedz o tym otwarcie na starcie.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout warn">
+      <span class="eyebrow">Kiedy nie wdrażać</span>
+      <p>
+        Odpuść, jeśli zachodzi którykolwiek z warunków: nie potrafisz wskazać kanału realizacji
+        wartości w żadnym dziale; brak zgody klientów lub regulatora na przetwarzanie danych
+        w usłudze zewnętrznej; nie ma powtarzalnych typów zadań, które da się zmierzyć;
+        albo nikt nie ma etatu na rolę wdrożeniową. Ostatni punkt jest najczęstszą przyczyną
+        martwych wdrożeń — licencje są kupione, faktury płacone, nikt nie buduje praktyki.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section id="checklisty">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">Moduł 6</span>
+      <h2>Checklisty</h2>
+      <p>Do odhaczenia przed startem i przy każdym przeglądzie kwartalnym.</p>
+    </div>
+    <div class="prose"><h3>Przed uruchomieniem pilotażu</h3></div>
+    <ul class="checklist">
+      <li><b>2–3 działy wybrane na podstawie modelu</b>, nie na podstawie tego, kto najgłośniej prosił.</li>
+      <li><b>Kanał realizacji wartości nazwany dla każdego działu</b> i udokumentowany dowodem.</li>
+      <li><b>Metryka główna zadeklarowana na piśmie</b> wraz z terminem analizy — przed zebraniem pierwszej danej.</li>
+      <li><b>Linia bazowa zbierana od minimum 4 tygodni</b>; sprawdzone, co da się wyciągnąć z CRM i systemu zgłoszeń.</li>
+      <li><b>Przydział do grup wylosowany</b> w obrębie działu i zapisany przed komunikacją.</li>
+      <li><b>Grupie kontrolnej zakomunikowany termin</b>, w którym dostanie dostęp.</li>
+      <li><b>Metryki zabezpieczające uruchomione</b> równolegle z główną, nie później.</li>
+      <li><b>Umowy z klientami i zobowiązania o poufności przejrzane</b> pod kątem przetwarzania zewnętrznego.</li>
+      <li><b>Klasyfikacja danych ustalona</b>, kategorie wykluczone spisane i zakomunikowane.</li>
+      <li><b>Rola wdrożeniowa obsadzona</b> z realnym etatem w budżecie.</li>
+      <li><b>Metryki odcięte od oceny pracowniczej i premii</b> — zakomunikowane wprost.</li>
+    </ul>
+    <div class="prose" style="margin-top:var(--sp-7)"><h3>Przegląd kwartalny po wdrożeniu</h3></div>
+    <ul class="checklist">
+      <li><b>Aktywne użycie wg działu</b> — czy są stanowiska bez logowań? Realokuj.</li>
+      <li><b>Efekt na zadanie</b> — czy utrzymuje się po opadnięciu efektu nowości?</li>
+      <li><b>Przepustowość i wykorzystanie czasu rozliczanego</b> — czy odzyskane godziny są widoczne w wynikach?</li>
+      <li><b>Metryki zabezpieczające</b> — czy poprawki, eskalacje i reklamacje nie rosną?</li>
+      <li><b>Netto wg działu</b> — czy układ się zmienił? Który dział dojrzał do wdrożenia?</li>
+      <li><b>Rekalibracja modelu</b> — podstaw zmierzone wartości, zwęź rozrzut, porównaj z prognozą.</li>
+      <li><b>Warunki umowy z dostawcą</b> — czy skala wdrożenia uzasadnia renegocjację?</li>
+    </ul>
+  </div>
+</section>
+
+<section id="zalozenia" style="border-bottom:0">
+  <div class="wrap">
+    <div class="sec-head"><span class="eyebrow">Aneks</span><h2>Założenia, formuły i ograniczenia</h2></div>
+    <div class="prose">
+      <h3>Formuły</h3>
+      <p>Model działa w krokach miesięcznych. Dla działu <code>d</code> i miesiąca <code>m</code>:</p>
+      <ul>
+        <li><code>ramp(m) = min(1, m / rozruch)</code></li>
+        <li><code>godziny(d,m) = etaty(d) × h_mies × kwalifikowany(d) × oszczędność(d) × (1 − weryfikacja(d)) × (1 − nowość) × adopcja(d) × ramp(m)</code></li>
+        <li><code>wartość(d,m) = godziny(d,m) × koszt_h(d) × mnożnik(d) × realizacja(d)</code></li>
+        <li><code>stanowiska(d) = zaokrąglenie w górę(etaty(d) × adopcja(d))</code></li>
+        <li><code>koszt(m) = Σ stanowiska(d) × cena_mieszana + platforma + zespół wdrożeniowy(m) + governance</code></li>
+        <li><code>NPV = −koszt_jednorazowy + Σ (wartość(m) + sprzedaż(m) − koszt(m)) / (1 + r)^(m/12)</code></li>
+      </ul>
+      <p>
+        Moduł sprzedażowy: <code>marża(m) = oferty × wzrost × wskaźnik_wygranych × wartość_kontraktu × marża% × ramp(m)</code>.
+        Okres zwrotu liczony jest na przepływach niezdyskontowanych, z kosztem jednorazowym w miesiącu&nbsp;0.
+      </p>
+      <p>
+        Symulacja Monte Carlo losuje <strong>wspólny</strong> mnożnik efektu i realizacji dla całej firmy
+        oraz osobne, mniejsze zaburzenie dla każdego działu. To odzwierciedla fakt, że wyniki
+        działów są skorelowane — to samo narzędzie, ta sama organizacja, ta sama kultura pracy.
+        Traktowanie ich jako niezależnych sztucznie zawężałoby rozkład i zawyżało pewność wyniku.
+        Generator jest deterministyczny, więc analiza jest odtwarzalna.
+      </p>
+
+      <h3>Skąd biorą się wartości domyślne</h3>
+      <p>
+        Struktury działów i wartości w presetach to <strong>założenia wstępne w wiarygodnym zakresie</strong>,
+        nie dane z konkretnej firmy. Uporządkowane są zgodnie z powtarzalną obserwacją, że efekt jest
+        największy tam, gdzie praca polega na przetwarzaniu i redagowaniu tekstu lub kodu,
+        umiarkowany w analizie i obsłudze klienta, a bliski zeru w pracy fizycznej i operacyjnej
+        na hali. Są przeznaczone do zastąpienia pomiarem z fazy&nbsp;0.
+      </p>
+      <p>
+        Ceny stanowisk zweryfikuj przed użyciem modelu — cenniki się zmieniają, rozliczenie roczne
+        jest tańsze od miesięcznego, plany zespołowe mają minimalną liczbę stanowisk, a przy
+        większych wdrożeniach obowiązują warunki indywidualne. Koszty godzin w presetach
+        odpowiadają pełnemu kosztowi pracodawcy z narzutem organizacyjnym w warunkach polskich;
+        zweryfikuj je we własnym controllingu.
+      </p>
+
+      <h3>Ograniczenia modelu</h3>
+      <ul>
+        <li>Nie wycenia skrócenia cyklu jako opcji — wcześniejsze wejście na rynek albo dotrzymany termin przetargu liczone są tylko przez koszt godziny, co zaniża wartość.</li>
+        <li>Zakłada stałą strukturę zatrudnienia i stałe koszty godzin w horyzoncie analizy.</li>
+        <li>Nie modeluje wpływu na retencję pracowników ani na atrakcyjność firmy jako pracodawcy.</li>
+        <li>Moduł sprzedażowy zakłada, że wzrost liczby ofert nie obniża wskaźnika wygranych. Przy dużych wzrostach wolumenu to założenie przestaje być prawdziwe — obniż wtedy wskaźnik wygranych ręcznie.</li>
+        <li>Rozkłady trójkątne to uproszczenie. Po fazie&nbsp;0 zastąp rozrzut rzeczywistym przedziałem ufności estymatora.</li>
+      </ul>
+      <p style="color:var(--ink-3);font-size:14px;margin-top:var(--sp-6)">
+        Wszystkie obliczenia wykonują się lokalnie w przeglądarce. Żadne wprowadzone dane nie opuszczają twojego urządzenia.
+      </p>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer><div class="wrap"><p class="eyebrow">Kalkulator ROI · firma komercyjna · wersja 1.0</p></div></footer>
+<div class="tip" id="tip" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+"use strict";
+
+/* ============================================================ 1. PRESETY */
+const PRESETS = {
+  services: {
+    label: "Usługi B2B",
+    depts: [
+      { name: "Rozwój oprogramowania",     fte: 34, rate: 160, elig: 60, save: 35, ver: 20, adopt: 80, mult: 2.0, real: 60 },
+      { name: "Sprzedaż i przedsprzedaż",  fte: 10, rate: 170, elig: 45, save: 35, ver: 20, adopt: 75, mult: 1.0, real: 55 },
+      { name: "Marketing i treści",        fte:  6, rate: 130, elig: 55, save: 45, ver: 15, adopt: 80, mult: 1.0, real: 45 },
+      { name: "Obsługa klienta",           fte: 14, rate:  95, elig: 65, save: 40, ver: 20, adopt: 85, mult: 1.0, real: 65 },
+      { name: "Operacje, finanse, HR",     fte: 16, rate: 120, elig: 40, save: 30, ver: 20, adopt: 60, mult: 1.0, real: 35 },
+    ],
+    sales: { offersMonth: 40, offersUplift: 15, winRate: 25, dealValue: 120000, dealMargin: 25 },
+    setupCost: 60000, legalCost: 45000, measureCost: 60000,
+    enablementFte: 1, enablementCost: 22000, govMonthly: 4000,
+  },
+  saas: {
+    label: "Produkt / SaaS",
+    depts: [
+      { name: "Inżynieria",                fte: 45, rate: 175, elig: 60, save: 35, ver: 20, adopt: 85, mult: 1.0, real: 55 },
+      { name: "Produkt i design",          fte: 12, rate: 165, elig: 50, save: 30, ver: 25, adopt: 75, mult: 1.0, real: 50 },
+      { name: "Sprzedaż",                  fte: 18, rate: 155, elig: 45, save: 35, ver: 20, adopt: 75, mult: 1.0, real: 55 },
+      { name: "Marketing i treści",        fte: 12, rate: 135, elig: 60, save: 45, ver: 15, adopt: 85, mult: 1.0, real: 50 },
+      { name: "Customer Success i wsparcie", fte: 20, rate: 105, elig: 65, save: 40, ver: 20, adopt: 85, mult: 1.0, real: 65 },
+      { name: "Operacje, finanse, HR",     fte: 13, rate: 125, elig: 40, save: 30, ver: 20, adopt: 60, mult: 1.0, real: 35 },
+    ],
+    sales: { offersMonth: 120, offersUplift: 12, winRate: 18, dealValue: 45000, dealMargin: 60 },
+    setupCost: 90000, legalCost: 60000, measureCost: 80000,
+    enablementFte: 1.5, enablementCost: 24000, govMonthly: 6000,
+  },
+  ecom: {
+    label: "E-commerce / handel",
+    depts: [
+      { name: "Marketing i treści",        fte: 14, rate: 120, elig: 65, save: 50, ver: 15, adopt: 85, mult: 1.0, real: 50 },
+      { name: "Obsługa zamówień i klienta", fte: 20, rate:  85, elig: 70, save: 45, ver: 20, adopt: 85, mult: 1.0, real: 70 },
+      { name: "Zarządzanie kategoriami",   fte: 10, rate: 115, elig: 55, save: 35, ver: 20, adopt: 70, mult: 1.0, real: 45 },
+      { name: "IT i integracje",           fte:  6, rate: 150, elig: 55, save: 35, ver: 20, adopt: 80, mult: 1.0, real: 50 },
+      { name: "Operacje, finanse, HR",     fte: 10, rate: 110, elig: 40, save: 30, ver: 20, adopt: 55, mult: 1.0, real: 35 },
+    ],
+    sales: { offersMonth: 0, offersUplift: 0, winRate: 2, dealValue: 300, dealMargin: 30 },
+    setupCost: 45000, legalCost: 30000, measureCost: 45000,
+    enablementFte: 0.75, enablementCost: 20000, govMonthly: 3000,
+  },
+  mfg: {
+    label: "Produkcja / przemysł",
+    depts: [
+      { name: "Produkcja bezpośrednia",    fte: 200, rate:  75, elig:  3, save: 20, ver: 25, adopt: 15, mult: 1.0, real: 20 },
+      { name: "Inżynieria i utrzymanie ruchu", fte: 25, rate: 140, elig: 45, save: 30, ver: 25, adopt: 65, mult: 1.0, real: 45 },
+      { name: "Jakość i dokumentacja",     fte: 15, rate: 115, elig: 60, save: 40, ver: 25, adopt: 70, mult: 1.0, real: 50 },
+      { name: "Zakupy i logistyka",        fte: 20, rate: 110, elig: 45, save: 30, ver: 20, adopt: 60, mult: 1.0, real: 45 },
+      { name: "Sprzedaż i ofertowanie",    fte: 15, rate: 140, elig: 50, save: 35, ver: 20, adopt: 70, mult: 1.0, real: 55 },
+      { name: "Operacje, finanse, HR",     fte: 25, rate: 110, elig: 40, save: 30, ver: 20, adopt: 55, mult: 1.0, real: 35 },
+    ],
+    sales: { offersMonth: 60, offersUplift: 12, winRate: 22, dealValue: 180000, dealMargin: 18 },
+    setupCost: 120000, legalCost: 70000, measureCost: 90000,
+    enablementFte: 1.5, enablementCost: 20000, govMonthly: 7000,
+  },
+};
+
+const GLOBAL_DEFAULTS = {
+  preset: "services",
+  hoursMonth: 152, rampMonths: 5, novelty: 15,
+  salesOn: 1,
+  pricePrem: 125, priceStd: 25, premShare: 40, fx: 3.64,
+  apiPerUser: 60, onboardHrs: 6,
+  horizon: 24, discount: 12, spread: 35,
+};
+
+/* stan */
+const S = Object.assign({}, GLOBAL_DEFAULTS);
+let DEPTS = [];
+const MC_N = 4000;
+
+function applyPreset(key) {
+  const p = PRESETS[key];
+  S.preset = key;
+  DEPTS = p.depts.map(d => Object.assign({}, d));
+  S.offersMonth = p.sales.offersMonth; S.offersUplift = p.sales.offersUplift;
+  S.winRate = p.sales.winRate; S.dealValue = p.sales.dealValue; S.dealMargin = p.sales.dealMargin;
+  S.setupCost = p.setupCost; S.legalCost = p.legalCost; S.measureCost = p.measureCost;
+  S.enablementFte = p.enablementFte; S.enablementCost = p.enablementCost; S.govMonthly = p.govMonthly;
+}
+
+const SCENARIOS = {
+  pess: { novelty: 30, rampMonths: 8, spread: 55, offersUplift: 5,
+          dSave: 0.6, dVer: 1.5, dAdopt: 0.65, dReal: 0.5 },
+  opt:  { novelty: 5,  rampMonths: 3, spread: 25, offersUplift: 25,
+          dSave: 1.35, dVer: 0.7, dAdopt: 1.15, dReal: 1.4 },
+};
+
+/* ============================================================ 2. FORMATOWANIE */
+const nf0 = new Intl.NumberFormat("pl-PL", { maximumFractionDigits: 0 });
+const nf1 = new Intl.NumberFormat("pl-PL", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const pln = v => nf0.format(Math.round(v)) + " zł";
+function plnShort(v) {
+  const a = Math.abs(v), sg = v < 0 ? "−" : "";
+  if (a >= 1e6) return sg + nf1.format(a / 1e6) + " mln zł";
+  if (a >= 1e3) return sg + nf0.format(Math.round(a / 1e3)) + " tys. zł";
+  return sg + nf0.format(Math.round(a)) + " zł";
+}
+const pct = v => nf0.format(Math.round(v)) + "%";
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+/* ============================================================ 3. MODEL */
+function blendedSeatPLN(s) {
+  const prem = s.premShare / 100;
+  return (prem * s.pricePrem + (1 - prem) * s.priceStd) * s.fx;
+}
+
+/** Wielkości niezależne od czasu — liczone raz na przebieg. */
+function steady(s, depts) {
+  const seatPrice = blendedSeatPLN(s);
+  let valueMonth = 0, hoursMonth = 0, seats = 0, perDept = [];
+
+  for (const d of depts) {
+    const h = d.fte * s.hoursMonth * (d.elig / 100) * (d.save / 100)
+            * (1 - d.ver / 100) * (1 - s.novelty / 100) * (d.adopt / 100);
+    const v = h * d.rate * d.mult * (d.real / 100);
+    const st = Math.ceil(d.fte * (d.adopt / 100));
+    const c = st * (seatPrice + s.apiPerUser);
+    hoursMonth += h; valueMonth += v; seats += st;
+    perDept.push({ name: d.name, hours: h, value: v, seats: st, cost: c, net: v - c });
+  }
+
+  const salesMonth = s.salesOn
+    ? s.offersMonth * (s.offersUplift / 100) * (s.winRate / 100) * s.dealValue * (s.dealMargin / 100)
+    : 0;
+
+  const fixedMonth = seats * (seatPrice + s.apiPerUser) + s.govMonthly;
+  const enableMonth = s.enablementFte * s.enablementCost;
+  const totalFte = depts.reduce((a, d) => a + d.fte, 0);
+  const oneOff = totalFte * s.onboardHrs * (depts.reduce((a, d) => a + d.rate * d.fte, 0) / (totalFte || 1))
+               + s.setupCost + s.legalCost + s.measureCost;
+
+  return { valueMonth, hoursMonth, salesMonth, fixedMonth, enableMonth, oneOff, seats, perDept, totalFte };
+}
+
+/** Przebieg miesięczny. `cumOut` opcjonalnie wypełniane skumulowanym zdyskontowanym przepływem. */
+function runPath(s, depts, cumOut, st) {
+  const K = st || steady(s, depts);
+  const H = s.horizon;
+  const mr = Math.pow(1 + s.discount / 100, 1 / 12) - 1;
+  let cum = -K.oneOff, cumRaw = -K.oneOff, df = 1, payback = null, npvCostOnly = -K.oneOff;
+
+  for (let m = 1; m <= H; m++) {
+    const ramp = Math.min(1, m / Math.max(1, s.rampMonths));
+    const value = K.valueMonth * ramp;
+    const sales = K.salesMonth * ramp;
+    const cost = K.fixedMonth + K.enableMonth * (m <= s.rampMonths ? 1 : 0.4);
+    const net = value + sales - cost;
+    df /= (1 + mr);
+    const prev = cumRaw;
+    cumRaw += net;
+    cum += net * df;
+    npvCostOnly += (value - cost) * df;
+    if (payback === null && prev < 0 && cumRaw >= 0) payback = m - 1 + (net !== 0 ? -prev / net : 0);
+    if (cumOut) cumOut[m - 1] = cum;
+  }
+  return { npv: cum, npvCostOnly, payback, K };
+}
+
+/** Minimalna realizacja (mnożnik na wszystkich działach), przy której NPV = 0.
+    Liczona na bazie WYŁĄCZNIE kosztowej — inaczej moduł sprzedażowy sam pokrywałby
+    koszty i próg spadałby do zera niezależnie od tego, co dzieje się z odzyskanym czasem. */
+function breakEvenRealization(s, depts) {
+  const scale = k => runPath(s, depts.map(d => Object.assign({}, d, { real: Math.min(100, d.real * k) })), null).npvCostOnly;
+  if (scale(1e-6) >= 0) return 0;
+  const baseAvg = depts.reduce((a, d) => a + d.real * d.fte, 0) / (depts.reduce((a, d) => a + d.fte, 0) || 1);
+  if (scale(100 / Math.max(1, baseAvg)) < 0) return null;
+  let lo = 0, hi = 100 / Math.max(1, baseAvg);
+  for (let i = 0; i < 40; i++) { const mid = (lo + hi) / 2; if (scale(mid) < 0) lo = mid; else hi = mid; }
+  return baseAvg * hi;
+}
+
+/* ============================================================ 4. MONTE CARLO */
+function makeRng(seed) {
+  let x = seed >>> 0;
+  return () => { x ^= x << 13; x >>>= 0; x ^= x >> 17; x ^= x << 5; x >>>= 0; return x / 4294967296; };
+}
+function tri(u, lo, mode, hi) {
+  if (hi <= lo) return mode;
+  const c = (mode - lo) / (hi - lo);
+  return u < c ? lo + Math.sqrt(u * (hi - lo) * (mode - lo))
+               : hi - Math.sqrt((1 - u) * (hi - lo) * (hi - mode));
+}
+
+function monteCarlo(s, depts) {
+  const rng = makeRng(20260727);
+  const sp = s.spread / 100, H = s.horizon;
+  const npvs = new Float64Array(MC_N);
+  const cumByMonth = Array.from({ length: H }, () => new Float64Array(MC_N));
+  const scratch = new Float64Array(H);
+  const idio = sp * 0.45; // zaburzenie idiosynkratyczne działu — mniejsze niż wspólne
+
+  for (let i = 0; i < MC_N; i++) {
+    // wspólne dla całej firmy — działy są skorelowane
+    const gEff  = tri(rng(), 1 - sp, 1, 1 + sp);
+    const gReal = tri(rng(), 1 - sp * 1.2, 1, 1 + sp);
+    const gAdo  = tri(rng(), 1 - sp * 0.8, 1, 1 + sp * 0.5);
+    const gVer  = tri(rng(), 1 - sp * 0.6, 1, 1 + sp * 1.2);
+
+    const dd = depts.map(d => ({
+      fte: d.fte, rate: d.rate, elig: d.elig, mult: d.mult,
+      save:  clamp(d.save  * gEff  * tri(rng(), 1 - idio, 1, 1 + idio), 0, 90),
+      ver:   clamp(d.ver   * gVer, 0, 90),
+      adopt: clamp(d.adopt * gAdo  * tri(rng(), 1 - idio, 1, 1 + idio), 0, 100),
+      real:  clamp(d.real  * gReal, 0, 100),
+    }));
+
+    const sd = Object.assign({}, s, { offersUplift: s.offersUplift * gEff });
+    npvs[i] = runPath(sd, dd, scratch).npv;
+    for (let m = 0; m < H; m++) cumByMonth[m][i] = scratch[m];
+  }
+
+  const sorted = Float64Array.from(npvs).sort();
+  const q = arr => p => arr[Math.min(arr.length - 1, Math.floor(p * arr.length))];
+  const qn = q(sorted);
+  let pos = 0; for (let i = 0; i < MC_N; i++) if (npvs[i] > 0) pos++;
+  const band = cumByMonth.map(a => { const f = q(Float64Array.from(a).sort()); return { p10: f(.10), p50: f(.50), p90: f(.90) }; });
+
+  return { npvs: sorted, p10: qn(.10), p50: qn(.50), p90: qn(.90), pPositive: pos / MC_N * 100, band };
+}
+
+/* ============================================================ 5. TORNADO */
+function tornado(s, depts, base) {
+  const scaleD = (field, k, cap) => depts.map(d => Object.assign({}, d, { [field]: clamp(d[field] * k, 0, cap) }));
+  const drivers = [
+    { label: "Realizacja wartości",  lo: .55, hi: 1.45, f: k => runPath(s, scaleD("real", k, 100), null).npv, u: "×" },
+    { label: "Wielkość efektu",      lo: .6,  hi: 1.4,  f: k => runPath(s, scaleD("save", k, 90), null).npv,  u: "×" },
+    { label: "Adopcja",              lo: .6,  hi: 1.3,  f: k => runPath(s, scaleD("adopt", k, 100), null).npv, u: "×" },
+    { label: "Czas kwalifikowany",   lo: .65, hi: 1.35, f: k => runPath(s, scaleD("elig", k, 100), null).npv,  u: "×" },
+    { label: "Narzut weryfikacji",   lo: .6,  hi: 1.6,  f: k => runPath(s, scaleD("ver", k, 90), null).npv,   u: "×" },
+    { label: "Mnożnik wartości h",   lo: .8,  hi: 1.2,  f: k => runPath(s, scaleD("mult", k, 6), null).npv,   u: "×" },
+    { label: "Dyskonto nowości",     lo: Math.max(0, s.novelty - 15), hi: Math.min(50, s.novelty + 20),
+      f: v => runPath(Object.assign({}, s, { novelty: v }), depts, null).npv, u: "%" },
+    { label: "Czas rozruchu",        lo: Math.max(1, s.rampMonths - 3), hi: s.rampMonths + 5,
+      f: v => runPath(Object.assign({}, s, { rampMonths: v }), depts, null).npv, u: " mies." },
+    { label: "Wzrost sprzedaży",     lo: 0, hi: s.salesOn ? s.offersUplift * 2 : 0,
+      f: v => runPath(Object.assign({}, s, { offersUplift: v }), depts, null).npv, u: "%" },
+    { label: "Cena stanowisk",       lo: s.pricePrem * .7, hi: s.pricePrem * 1.6,
+      f: v => runPath(Object.assign({}, s, { pricePrem: v, priceStd: s.priceStd * (v / (s.pricePrem || 1)) }), depts, null).npv, u: " USD" },
+    { label: "Zespół wdrożeniowy",   lo: Math.max(0, s.enablementFte - 1), hi: s.enablementFte + 2,
+      f: v => runPath(Object.assign({}, s, { enablementFte: v }), depts, null).npv, u: " etat" },
+  ];
+
+  return drivers.map(d => {
+    const a = d.f(d.lo), b = d.f(d.hi);
+    const fmt = v => (d.u === "×" ? nf1.format(v) : nf0.format(Math.round(v))) + d.u;
+    return { label: d.label, low: a - base, high: b - base, loTxt: fmt(d.lo), hiTxt: fmt(d.hi), span: Math.abs(b - a) };
+  }).filter(d => d.span > 1).sort((x, y) => y.span - x.span);
+}
+
+/* ============================================================ 6. SVG */
+const NS = "http://www.w3.org/2000/svg";
+function el(name, attrs, text) {
+  const n = document.createElementNS(NS, name);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  if (text != null) n.textContent = text;
+  return n;
+}
+const cssv = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function niceScale(min, max, count) {
+  const span = (max - min) || Math.abs(max) || 1;
+  const mag = Math.pow(10, Math.floor(Math.log10(span / count)));
+  const norm = (span / count) / mag;
+  const step = (norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 2.5 ? 2.5 : norm <= 5 ? 5 : 10) * mag;
+  const lo = Math.floor(min / step) * step, hi = Math.ceil(max / step) * step;
+  const ticks = [];
+  for (let v = lo; v <= hi + step * 1e-6; v += step) ticks.push(Math.abs(v) < step * 1e-6 ? 0 : v);
+  return { lo, hi, ticks };
+}
+function svgRoot(w, h) {
+  const s = el("svg", { viewBox: `0 0 ${w} ${h}`, width: "100%", height: h, role: "img" });
+  s.style.overflow = "visible";
+  return s;
+}
+const tipEl = document.getElementById("tip");
+function showTip(x, y, html) {
+  tipEl.innerHTML = html; tipEl.style.opacity = "1";
+  const r = tipEl.getBoundingClientRect();
+  let left = x + 14, top = y - r.height - 12;
+  if (left + r.width > window.innerWidth - 10) left = x - r.width - 14;
+  if (top < 8) top = y + 18;
+  tipEl.style.left = left + "px"; tipEl.style.top = top + "px";
+}
+const hideTip = () => { tipEl.style.opacity = "0"; };
+
+/* ============================================================ 7. WYKRESY */
+function drawCash(mount, res, mc, oneOff) {
+  mount.innerHTML = "";
+  const W = 800, H = 300, M = { t: 16, r: 78, b: 34, l: 84 };
+  const iw = W - M.l - M.r, ih = H - M.t - M.b, n = mc.band.length;
+  const vals = [-oneOff, 0];
+  mc.band.forEach(b => vals.push(b.p10, b.p90));
+  const scale = niceScale(Math.min(...vals), Math.max(...vals), 5);
+  const X = m => M.l + (m / n) * iw;
+  const Y = v => M.t + ih - ((v - scale.lo) / (scale.hi - scale.lo)) * ih;
+
+  const svg = svgRoot(W, H);
+  svg.setAttribute("aria-label", "Skumulowany zdyskontowany przepływ netto w czasie z przedziałem niepewności");
+  const ruleC = cssv("--rule"), ink3 = cssv("--ink-3"), ink2 = cssv("--ink-2"), accent = cssv("--accent");
+
+  scale.ticks.forEach(v => {
+    svg.appendChild(el("line", { x1: M.l, x2: M.l + iw, y1: Y(v), y2: Y(v), stroke: ruleC, "stroke-width": 1 }));
+    svg.appendChild(el("text", { x: M.l - 10, y: Y(v) + 4, "text-anchor": "end", "font-size": 10.5, fill: ink3 }, v === 0 ? "0" : plnShort(v)));
+  });
+
+  let up = `M ${X(0)} ${Y(-oneOff)}`, dn = "";
+  mc.band.forEach((b, i) => { up += ` L ${X(i + 1)} ${Y(b.p90)}`; });
+  for (let i = n - 1; i >= 0; i--) dn += ` L ${X(i + 1)} ${Y(mc.band[i].p10)}`;
+  svg.appendChild(el("path", { d: up + dn + ` L ${X(0)} ${Y(-oneOff)} Z`, fill: accent, "fill-opacity": .13, stroke: accent, "stroke-opacity": .28, "stroke-width": 1 }));
+
+  svg.appendChild(el("line", { x1: M.l, x2: M.l + iw, y1: Y(0), y2: Y(0), stroke: ink3, "stroke-width": 1.5, "stroke-dasharray": "5 4" }));
+  svg.appendChild(el("text", { x: M.l + iw + 8, y: Y(0) + 4, "font-size": 10.5, fill: ink3 }, "próg"));
+
+  let med = `M ${X(0)} ${Y(-oneOff)}`;
+  mc.band.forEach((b, i) => { med += ` L ${X(i + 1)} ${Y(b.p50)}`; });
+  svg.appendChild(el("path", { d: med, fill: "none", stroke: accent, "stroke-width": 2, "stroke-linejoin": "round" }));
+
+  if (res.payback != null && res.payback <= n) {
+    const px = X(res.payback), good = cssv("--good");
+    svg.appendChild(el("line", { x1: px, x2: px, y1: M.t, y2: M.t + ih, stroke: good, "stroke-width": 1.5, "stroke-dasharray": "3 3" }));
+    svg.appendChild(el("circle", { cx: px, cy: Y(0), r: 4.5, fill: good, stroke: cssv("--panel"), "stroke-width": 2 }));
+    const flip = px > M.l + iw * .68;
+    svg.appendChild(el("text", { x: flip ? px - 8 : px + 8, y: M.t + 12, "text-anchor": flip ? "end" : "start", "font-size": 10.5, fill: good, "font-weight": 600 },
+      "zwrot: " + nf1.format(res.payback) + " mies."));
+  }
+
+  const step = n > 36 ? 12 : n > 18 ? 6 : 3;
+  for (let m = 0; m <= n; m += step) svg.appendChild(el("text", { x: X(m), y: H - 12, "text-anchor": "middle", "font-size": 10.5, fill: ink3 }, m));
+  svg.appendChild(el("text", { x: M.l, y: H - 1, "font-size": 10, fill: ink3, "letter-spacing": ".08em" }, "MIESIĄC"));
+
+  const cross = el("line", { x1: 0, x2: 0, y1: M.t, y2: M.t + ih, stroke: ink2, "stroke-width": 1, opacity: 0 });
+  const dot = el("circle", { r: 4, fill: accent, stroke: cssv("--panel"), "stroke-width": 2, opacity: 0 });
+  svg.appendChild(cross); svg.appendChild(dot);
+  const hit = el("rect", { x: M.l, y: M.t, width: iw, height: ih, fill: "transparent", style: "cursor:crosshair" });
+  svg.appendChild(hit);
+  hit.addEventListener("pointermove", e => {
+    const r = svg.getBoundingClientRect();
+    const m = Math.round(clamp(((e.clientX - r.left) / r.width * W - M.l) / iw * n, 1, n));
+    const b = mc.band[m - 1];
+    cross.setAttribute("x1", X(m)); cross.setAttribute("x2", X(m)); cross.setAttribute("opacity", .5);
+    dot.setAttribute("cx", X(m)); dot.setAttribute("cy", Y(b.p50)); dot.setAttribute("opacity", 1);
+    showTip(e.clientX, e.clientY,
+      `<div class="tip-t">Miesiąc ${m}</div>
+       <div class="tip-r"><em>P90</em><b>${plnShort(b.p90)}</b></div>
+       <div class="tip-r"><em>Mediana</em><b>${plnShort(b.p50)}</b></div>
+       <div class="tip-r"><em>P10</em><b>${plnShort(b.p10)}</b></div>`);
+  });
+  hit.addEventListener("pointerleave", () => { hideTip(); cross.setAttribute("opacity", 0); dot.setAttribute("opacity", 0); });
+  mount.appendChild(svg);
+}
+
+function drawTornado(mount, data) {
+  mount.innerHTML = "";
+  if (!data.length) { mount.textContent = "Brak zmiennych o istotnym wpływie."; return; }
+  const rowH = 27, W = 800, M = { t: 22, r: 100, b: 22, l: 176 };
+  const H = M.t + data.length * rowH + M.b, iw = W - M.l - M.r;
+  const maxAbs = Math.max(...data.map(d => Math.max(Math.abs(d.low), Math.abs(d.high)))) * 1.06 || 1;
+  const cx = M.l + iw / 2, X = v => cx + (v / maxAbs) * (iw / 2);
+
+  const svg = svgRoot(W, H);
+  svg.setAttribute("aria-label", "Wykres tornado: wpływ zmiany każdego parametru na wartość bieżącą netto");
+  const ink = cssv("--ink"), ink3 = cssv("--ink-3"), ruleC = cssv("--rule"), cLow = cssv("--s1"), cHigh = cssv("--bad");
+  svg.appendChild(el("line", { x1: cx, x2: cx, y1: M.t - 8, y2: H - M.b + 2, stroke: cssv("--rule-strong"), "stroke-width": 1.5 }));
+  svg.appendChild(el("text", { x: cx, y: 11, "text-anchor": "middle", "font-size": 10, fill: ink3, "letter-spacing": ".08em" }, "NPV BAZOWE"));
+
+  data.forEach((d, i) => {
+    const y = M.t + i * rowH, yc = y + rowH / 2;
+    svg.appendChild(el("text", { x: M.l - 12, y: yc + 4, "text-anchor": "end", "font-size": 11.5, fill: ink }, d.label));
+    [[d.low, cLow, d.loTxt], [d.high, cHigh, d.hiTxt]].forEach(([v, col, txt]) => {
+      if (Math.abs(v) < 1) return;
+      const x0 = Math.min(cx, X(v)), w = Math.abs(X(v) - cx);
+      svg.appendChild(el("rect", { x: v < 0 ? x0 : cx + 2, y: y + 5, width: Math.max(1, w - 2), height: rowH - 12, fill: col, rx: 3 }));
+      const g = el("g");
+      g.appendChild(el("title", null, `${d.label} = ${txt} → zmiana NPV ${v >= 0 ? "+" : "−"}${plnShort(Math.abs(v))}`));
+      g.appendChild(el("rect", { x: v < 0 ? x0 : cx, y: y + 3, width: Math.max(3, w), height: rowH - 8, fill: "transparent" }));
+      svg.appendChild(g);
+    });
+    svg.appendChild(el("text", { x: W - M.r + 8, y: yc + 4, "font-size": 10.5, fill: ink3 }, "±" + plnShort(Math.abs(d.high - d.low) / 2)));
+    svg.appendChild(el("line", { x1: M.l, x2: W - M.r, y1: y + rowH, y2: y + rowH, stroke: ruleC, "stroke-width": 1 }));
+  });
+  mount.appendChild(svg);
+}
+
+function drawMc(mount, mc) {
+  mount.innerHTML = "";
+  const W = 800, H = 260, M = { t: 30, r: 20, b: 40, l: 54 };
+  const iw = W - M.l - M.r, ih = H - M.t - M.b;
+  const lo = mc.npvs[Math.floor(MC_N * .005)], hi = mc.npvs[Math.floor(MC_N * .995)];
+  const BINS = 34, w = (hi - lo) / BINS || 1;
+  const counts = new Array(BINS).fill(0);
+  for (let i = 0; i < MC_N; i++) { const b = Math.floor((mc.npvs[i] - lo) / w); if (b >= 0 && b < BINS) counts[b]++; }
+  const maxC = Math.max(...counts);
+  const X = v => M.l + ((v - lo) / (hi - lo)) * iw, Y = c => M.t + ih - (c / maxC) * ih;
+
+  const svg = svgRoot(W, H);
+  svg.setAttribute("aria-label", "Histogram rozkładu wartości bieżącej netto z symulacji Monte Carlo");
+  const ink = cssv("--ink"), ink3 = cssv("--ink-3"), accent = cssv("--accent"), bad = cssv("--bad");
+  svg.appendChild(el("line", { x1: M.l, x2: M.l + iw, y1: M.t + ih, y2: M.t + ih, stroke: cssv("--rule-strong"), "stroke-width": 1 }));
+
+  const bw = iw / BINS;
+  counts.forEach((c, i) => {
+    if (!c) return;
+    const v0 = lo + i * w, g = el("g");
+    g.appendChild(el("title", null, `${plnShort(v0)} … ${plnShort(v0 + w)} — ${nf0.format(c)} przebiegów (${nf1.format(c / MC_N * 100)}%)`));
+    g.appendChild(el("rect", { x: M.l + i * bw + 1, y: Y(c), width: Math.max(1, bw - 2), height: Math.max(1, M.t + ih - Y(c)), fill: v0 + w / 2 < 0 ? bad : accent, rx: 2 }));
+    svg.appendChild(g);
+  });
+  if (lo < 0 && hi > 0) {
+    svg.appendChild(el("line", { x1: X(0), x2: X(0), y1: M.t - 12, y2: M.t + ih, stroke: ink, "stroke-width": 1.5 }));
+    svg.appendChild(el("text", { x: X(0), y: M.t - 17, "text-anchor": "middle", "font-size": 10, fill: ink }, "0"));
+  }
+  [["P10", mc.p10], ["P50", mc.p50], ["P90", mc.p90]].forEach(([lab, v]) => {
+    if (v < lo || v > hi) return;
+    const x = X(v);
+    svg.appendChild(el("line", { x1: x, x2: x, y1: M.t + 2, y2: M.t + ih, stroke: ink3, "stroke-width": 1, "stroke-dasharray": "3 3" }));
+    svg.appendChild(el("text", { x, y: M.t + ih + 15, "text-anchor": "middle", "font-size": 10.5, fill: ink3 }, lab));
+    svg.appendChild(el("text", { x, y: M.t + ih + 29, "text-anchor": "middle", "font-size": 10.5, fill: ink, "font-weight": 600 }, plnShort(v)));
+  });
+  svg.appendChild(el("text", { x: M.l, y: 12, "font-size": 10, fill: ink3, "letter-spacing": ".08em" }, "LICZBA PRZEBIEGÓW"));
+  mount.appendChild(svg);
+}
+
+/** Netto roczne wg działu — słupki rozbieżne wokół zera. */
+function drawDept(mount, perDept) {
+  mount.innerHTML = "";
+  const items = perDept.map(d => ({ name: d.name, net: d.net * 12, value: d.value * 12, cost: d.cost * 12 }))
+                       .sort((a, b) => b.net - a.net);
+  const rowH = 40, W = 860, M = { t: 20, r: 24, b: 14, l: 258 };
+  const H = M.t + items.length * rowH + M.b, iw = W - M.l - M.r;
+  const maxAbs = Math.max(...items.map(i => Math.abs(i.net)), 1) * 1.05;
+  const hasNeg = items.some(i => i.net < 0);
+  const cx = hasNeg ? M.l + iw * 0.34 : M.l;
+  const unit = hasNeg ? Math.min(iw * 0.34, iw * 0.62) / maxAbs : iw * 0.62 / maxAbs;
+
+  const svg = svgRoot(W, H);
+  svg.setAttribute("aria-label", "Roczna wartość netto w podziale na działy");
+  const ink = cssv("--ink"), ink3 = cssv("--ink-3"), pos = cssv("--s1"), neg = cssv("--bad");
+  svg.appendChild(el("line", { x1: cx, x2: cx, y1: M.t - 6, y2: H - M.b, stroke: cssv("--rule-strong"), "stroke-width": 1.5 }));
+  svg.appendChild(el("text", { x: cx, y: 10, "text-anchor": "middle", "font-size": 10, fill: ink3, "letter-spacing": ".08em" }, "0"));
+
+  items.forEach((it, i) => {
+    const y = M.t + i * rowH, w = Math.abs(it.net) * unit;
+    const label = it.name.length > 32 ? it.name.slice(0, 31) + "…" : it.name;
+    svg.appendChild(el("text", { x: M.l - 14, y: y + 20, "text-anchor": "end", "font-size": 12, fill: ink }, label));
+    const g = el("g");
+    g.appendChild(el("title", null, `${it.name}: wartość ${pln(it.value)} − koszt ${pln(it.cost)} = netto ${pln(it.net)} rocznie`));
+    g.appendChild(el("rect", { x: it.net < 0 ? cx - w : cx + 1, y: y + 6, width: Math.max(2, w - 1), height: 20, fill: it.net < 0 ? neg : pos, rx: 3 }));
+    svg.appendChild(g);
+    // etykieta zawsze na prawo od osi — przy ujemnym słupku nachodziłaby na nazwę działu
+    const lx = it.net < 0 ? cx + 10 : cx + w + 10;
+    svg.appendChild(el("text", { x: lx, y: y + 20, "font-size": 12, fill: it.net < 0 ? neg : ink, "font-weight": 600 }, plnShort(it.net)));
+    svg.appendChild(el("text", { x: lx, y: y + 34, "font-size": 10.5, fill: ink3 }, plnShort(it.value) + " − " + plnShort(it.cost)));
+  });
+  mount.appendChild(svg);
+}
+
+/* ============================================================ 8. TABELE */
+function table(headers, rows) {
+  const wrap = document.createElement("div");
+  wrap.className = "tbl-scroll";
+  const t = document.createElement("table"); t.className = "data";
+  const th = document.createElement("thead");
+  th.innerHTML = "<tr>" + headers.map(h => `<th scope="col">${h}</th>`).join("") + "</tr>";
+  const tb = document.createElement("tbody");
+  tb.innerHTML = rows.map(r => "<tr>" + r.map(c => `<td>${c}</td>`).join("") + "</tr>").join("");
+  t.appendChild(th); t.appendChild(tb); wrap.appendChild(t);
+  return wrap;
+}
+
+/* ============================================================ 9. TABELA DZIAŁÓW */
+const DCOLS = [
+  { k: "fte",   min: 0, max: 5000, step: 1 },
+  { k: "rate",  min: 20, max: 600, step: 5 },
+  { k: "elig",  min: 0, max: 100, step: 1 },
+  { k: "save",  min: 0, max: 90,  step: 1 },
+  { k: "ver",   min: 0, max: 90,  step: 1 },
+  { k: "adopt", min: 0, max: 100, step: 1 },
+  { k: "mult",  min: 0.5, max: 6, step: 0.1 },
+  { k: "real",  min: 0, max: 100, step: 1 },
+];
+
+/** Pełna przebudowa wierszy — tylko gdy zmienia się lista działów.
+    Przebudowa przy każdym naciśnięciu klawisza gubiłaby kursor w polu. */
+function buildDeptTable() {
+  document.getElementById("deptRows").innerHTML = DEPTS.map((d, i) => {
+    const cells = DCOLS.map(c =>
+      `<td><input type="number" data-i="${i}" data-k="${c.k}" min="${c.min}" max="${c.max}" step="${c.step}" value="${d[c.k]}" aria-label="${c.k} — ${d.name}"></td>`).join("");
+    return `<tr>
+      <td><input type="text" data-i="${i}" data-k="name" value="${d.name.replace(/"/g, "&quot;")}" aria-label="Nazwa działu ${i + 1}"></td>
+      ${cells}
+      <td class="out" data-out="value"></td>
+      <td class="out" data-out="cost"></td>
+      <td class="out" data-out="net"></td>
+      <td><button class="rm" type="button" data-rm="${i}" aria-label="Usuń dział">×</button></td>
+    </tr>`;
+  }).join("");
+}
+
+/** Aktualizacja wyłącznie kolumn wynikowych — wywoływana przy każdym przeliczeniu. */
+function updateDeptOutputs(per) {
+  const rows = document.getElementById("deptRows").rows;
+  for (let i = 0; i < per.length && i < rows.length; i++) {
+    const p = per[i], r = rows[i];
+    r.querySelector('[data-out="value"]').textContent = plnShort(p.value * 12);
+    r.querySelector('[data-out="cost"]').textContent = plnShort(p.cost * 12);
+    const net = r.querySelector('[data-out="net"]');
+    net.textContent = plnShort(p.net * 12);
+    net.className = "out " + (p.net >= 0 ? "pos" : "neg");
+  }
+  const tot = per.reduce((a, p) => ({ v: a.v + p.value, c: a.c + p.cost, n: a.n + p.net, s: a.s + p.seats }), { v: 0, c: 0, n: 0, s: 0 });
+  const totFte = DEPTS.reduce((a, d) => a + d.fte, 0);
+  document.getElementById("deptFoot").innerHTML = `<tr>
+    <td>Razem</td><td>${nf0.format(totFte)}</td>
+    <td colspan="7"></td>
+    <td class="out">${plnShort(tot.v * 12)}</td>
+    <td class="out">${plnShort(tot.c * 12)}</td>
+    <td class="out ${tot.n >= 0 ? "pos" : "neg"}">${plnShort(tot.n * 12)}</td>
+    <td></td></tr>`;
+  document.getElementById("deptSummary").textContent =
+    `${nf0.format(totFte)} etatów · ${nf0.format(tot.s)} stanowisk (${pct(totFte ? tot.s / totFte * 100 : 0)} obsady)`;
+}
+
+/* ============================================================ 10. KPI */
+function renderKpis(res, mc, beReal, K) {
+  const npvOk = res.npv > 0;
+  const conf = mc.pPositive >= 80 ? "good" : mc.pPositive >= 55 ? "warn" : "bad";
+  const confTxt = mc.pPositive >= 80 ? "Wynik odporny" : mc.pPositive >= 55 ? "Wynik niepewny" : "Wynik ryzykowny";
+  const avgReal = DEPTS.reduce((a, d) => a + d.real * d.fte, 0) / (K.totalFte || 1);
+
+  const cards = [
+    { t: `NPV — ${S.horizon} mies.`, v: plnShort(res.npv), c: npvOk ? "var(--good)" : "var(--bad)",
+      sub: `Stopa dyskontowa ${pct(S.discount)} rocznie` },
+    { t: "NPV tylko kosztowe", v: plnShort(res.npvCostOnly),
+      c: res.npvCostOnly > 0 ? "var(--good)" : "var(--bad)",
+      sub: S.salesOn ? "Bez wzrostu sprzedaży — wersja do obrony przed CFO" : "Moduł sprzedażowy wyłączony" },
+    { t: "Okres zwrotu", v: res.payback != null ? nf1.format(res.payback) + " mies." : "brak",
+      c: res.payback != null && res.payback <= 12 ? "var(--good)" : res.payback != null ? "var(--warn)" : "var(--bad)",
+      sub: res.payback != null ? "Na przepływach niezdyskontowanych" : `Nie zwraca się w ${S.horizon} mies.` },
+    { t: "P(NPV > 0)", v: pct(mc.pPositive), pill: [conf, confTxt], sub: `${nf0.format(MC_N)} przebiegów symulacji` },
+    { t: "Scenariusz P10", v: plnShort(mc.p10), c: mc.p10 >= 0 ? "var(--good)" : "var(--bad)",
+      sub: "Wynik, gdy wszystko idzie przeciętnie źle" },
+    { t: "Próg realizacji", v: beReal == null ? "niedostępny" : pct(beReal),
+      c: beReal != null && beReal < avgReal * .6 ? "var(--good)" : "var(--ink)",
+      sub: beReal == null ? "Nie zwraca się nawet przy 100%" : `Na bazie kosztowej · w modelu: ${pct(avgReal)}` },
+    { t: "Koszt miesięczny", v: pln(K.fixedMonth + K.enableMonth * .4),
+      sub: `${nf0.format(K.seats)} stanowisk · jednorazowo ${plnShort(K.oneOff)}` },
+    { t: "Odzyskane etaty", v: nf1.format(K.hoursMonth / S.hoursMonth) + " FTE",
+      sub: `${nf0.format(Math.round(K.hoursMonth))} h miesięcznie w stanie ustabilizowanym` },
+  ];
+  document.getElementById("kpis").innerHTML = cards.map(c => `
+    <div class="kpi"><dt>${c.t}</dt><dd style="color:${c.c || "var(--ink)"}">${c.v}</dd>
+    ${c.pill ? `<span class="pill ${c.pill[0]}">${c.pill[1]}</span>` : ""}
+    <span class="sub">${c.sub}</span></div>`).join("");
+}
+
+/* ============================================================ 11. STEROWANIE */
+function bind(key) {
+  const num = document.getElementById(key), rng = document.getElementById(key + "_r");
+  if (!num) return;
+  const push = v => {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return;
+    S[key] = n;
+    if (num.value !== String(n)) num.value = n;
+    if (rng && rng.value !== String(n)) rng.value = n;
+    render();
+  };
+  num.value = S[key];
+  if (rng) { rng.value = S[key]; rng.addEventListener("input", e => push(e.target.value)); }
+  num.addEventListener("input", e => push(e.target.value));
+}
+function syncInputs() {
+  Object.keys(S).forEach(k => {
+    const num = document.getElementById(k), rng = document.getElementById(k + "_r");
+    if (num && num.type !== "checkbox") num.value = S[k];
+    if (rng) rng.value = S[k];
+  });
+  document.getElementById("salesOn").checked = !!S.salesOn;
+  document.getElementById("preset").value = S.preset;
+}
+function applyScenario(name) {
+  const sc = SCENARIOS[name];
+  applyPreset(S.preset);
+  S.novelty = sc.novelty; S.rampMonths = sc.rampMonths; S.spread = sc.spread; S.offersUplift = sc.offersUplift;
+  DEPTS = DEPTS.map(d => Object.assign({}, d, {
+    save:  clamp(d.save * sc.dSave, 0, 90),
+    ver:   clamp(d.ver * sc.dVer, 0, 90),
+    adopt: clamp(d.adopt * sc.dAdopt, 0, 100),
+    real:  clamp(d.real * sc.dReal, 0, 100),
+  }));
+  buildDeptTable(); syncInputs(); render();
+}
+
+/* ============================================================ 12. RENDER */
+let raf = null;
+const render = () => { if (raf) cancelAnimationFrame(raf); raf = requestAnimationFrame(renderNow); };
+
+function renderNow() {
+  const K = steady(S, DEPTS);
+  const res = runPath(S, DEPTS, null, K);
+  const mc = monteCarlo(S, DEPTS);
+  const torn = tornado(S, DEPTS, res.npv);
+  const beReal = breakEvenRealization(S, DEPTS);
+
+  renderKpis(res, mc, beReal, K);
+  updateDeptOutputs(K.perDept);
+  drawDept(document.getElementById("chartDept"), K.perDept);
+  drawCash(document.getElementById("chartCash"), res, mc, K.oneOff);
+  drawTornado(document.getElementById("chartTornado"), torn);
+  drawMc(document.getElementById("chartMc"), mc);
+
+  const anyNeg = mc.npvs[0] < 0, anyPos = mc.npvs[MC_N - 1] > 0;
+  document.getElementById("legMcNeg").hidden = !anyNeg;
+  const note = document.getElementById("mcNote");
+  if (!anyNeg) {
+    note.style.color = "var(--good)";
+    note.textContent = "Wszystkie przebiegi dodatnie — zero leży poza zakresem wykresu. Ryzyko nie tkwi w wielkości efektu, tylko w samych założeniach: sprawdź próg realizacji i wykres tornado.";
+  } else if (!anyPos) {
+    note.style.color = "var(--bad)";
+    note.textContent = "Wszystkie przebiegi ujemne — przy tych założeniach wdrożenie nie zwraca się w żadnym wariancie.";
+  } else {
+    note.style.color = "var(--ink-3)";
+    note.textContent = `Udział przebiegów ujemnych: ${pct(100 - mc.pPositive)}.`;
+  }
+
+  // tabele
+  const tDept = document.getElementById("tblDept");
+  tDept.innerHTML = "";
+  tDept.appendChild(table(["Dział", "Etaty", "Stanowiska", "Godziny / mies.", "Wartość / rok", "Koszt / rok", "Netto / rok"],
+    K.perDept.map((p, i) => [p.name, nf0.format(DEPTS[i].fte), nf0.format(p.seats),
+      nf0.format(Math.round(p.hours)), pln(p.value * 12), pln(p.cost * 12), pln(p.net * 12)])));
+
+  const tCash = document.getElementById("tblCash");
+  tCash.innerHTML = "";
+  const mr = Math.pow(1 + S.discount / 100, 1 / 12) - 1;
+  const rows = [];
+  let df = 1;
+  for (let m = 1; m <= S.horizon; m++) {
+    const ramp = Math.min(1, m / Math.max(1, S.rampMonths));
+    const value = K.valueMonth * ramp, sales = K.salesMonth * ramp;
+    const cost = K.fixedMonth + K.enableMonth * (m <= S.rampMonths ? 1 : .4);
+    df /= (1 + mr);
+    rows.push([m, pct(ramp * 100), pln(value), pln(sales), pln(cost), pln(value + sales - cost),
+      pln(mc.band[m - 1].p50), pln(mc.band[m - 1].p10), pln(mc.band[m - 1].p90)]);
+  }
+  tCash.appendChild(table(["Mies.", "Adopcja", "Wartość", "Sprzedaż", "Koszt", "Przepływ", "Skum. P50", "P10", "P90"], rows));
+
+  const tTorn = document.getElementById("tblTorn");
+  tTorn.innerHTML = "";
+  tTorn.appendChild(table(["Parametr", "Wartość niska", "Δ NPV", "Wartość wysoka", "Δ NPV", "Rozpiętość"],
+    torn.map(d => [d.label, d.loTxt, pln(d.low), d.hiTxt, pln(d.high), pln(d.span)])));
+
+  const tMc = document.getElementById("tblMc");
+  tMc.innerHTML = "";
+  tMc.appendChild(table(["Percentyl", "NPV"],
+    [.05, .1, .25, .5, .75, .9, .95].map(q => ["P" + Math.round(q * 100), pln(mc.npvs[Math.floor(q * MC_N)])])
+      .concat([["Prawdopodobieństwo NPV > 0", pct(mc.pPositive)]])));
+}
+
+/* ============================================================ 13. INIT */
+applyPreset("services");
+buildDeptTable();
+Object.keys(S).forEach(bind);
+document.getElementById("mcCountLabel").textContent = nf0.format(MC_N);
+
+document.getElementById("preset").addEventListener("change", e => { applyPreset(e.target.value); buildDeptTable(); syncInputs(); render(); });
+document.getElementById("salesOn").checked = !!S.salesOn;
+document.getElementById("salesOn").addEventListener("change", e => {
+  S.salesOn = e.target.checked ? 1 : 0;
+  document.getElementById("salesFields").style.opacity = S.salesOn ? "1" : ".4";
+  render();
+});
+document.getElementById("btnReset").addEventListener("click", () => {
+  Object.assign(S, GLOBAL_DEFAULTS); applyPreset(S.preset); buildDeptTable(); syncInputs();
+  document.getElementById("salesOn").checked = true;
+  document.getElementById("salesFields").style.opacity = "1"; render();
+});
+document.getElementById("btnPess").addEventListener("click", () => applyScenario("pess"));
+document.getElementById("btnOpt").addEventListener("click", () => applyScenario("opt"));
+
+document.getElementById("btnAddDept").addEventListener("click", () => {
+  DEPTS.push({ name: "Nowy dział", fte: 10, rate: 120, elig: 45, save: 30, ver: 20, adopt: 60, mult: 1.0, real: 40 });
+  buildDeptTable(); render();
+});
+document.getElementById("deptRows").addEventListener("input", e => {
+  const t = e.target, i = Number(t.dataset.i), k = t.dataset.k;
+  if (!Number.isInteger(i) || !k || !DEPTS[i]) return;
+  if (k === "name") DEPTS[i].name = t.value;
+  else { const n = Number(t.value); if (!Number.isFinite(n)) return; DEPTS[i][k] = n; }
+  render();   // przelicza i odświeża wyjścia, nie ruszając pól wejściowych
+});
+document.getElementById("deptRows").addEventListener("click", e => {
+  const b = e.target.closest("[data-rm]");
+  if (!b) return;
+  const i = Number(b.dataset.rm);
+  if (DEPTS.length > 1) { DEPTS.splice(i, 1); buildDeptTable(); render(); }
+});
+
+document.querySelectorAll(".tbl-toggle").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const t = document.getElementById(btn.dataset.tbl);
+    t.hidden = !t.hidden;
+    btn.textContent = t.hidden ? "Pokaż tabelę" : "Ukryj tabelę";
+  });
+});
+
+const themeBtn = document.getElementById("themeBtn");
+const MODES = ["auto", "light", "dark"], LABELS = { auto: "Motyw: auto", light: "Motyw: jasny", dark: "Motyw: ciemny" };
+let mode = 0;
+themeBtn.addEventListener("click", () => {
+  mode = (mode + 1) % 3;
+  const m = MODES[mode];
+  if (m === "auto") document.documentElement.removeAttribute("data-theme");
+  else document.documentElement.setAttribute("data-theme", m);
+  themeBtn.textContent = LABELS[m];
+  render();
+});
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (MODES[mode] === "auto") render(); });
+
+let resizeTimer = null;
+window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(render, 160); });
+
+syncInputs();
+render();
+})();
+</script>
