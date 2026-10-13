@@ -1,0 +1,65 @@
+[Script Info]
+ScriptType: v4.00+
+PlayResX: 1080
+PlayResY: 1920
+WrapStyle: 0
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Napis,DejaVu Sans,64,&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,1,0,0,0,100,100,0,0,1,5,2,2,80,80,520,1
+Style: Plansza,DejaVu Sans,150,&H00FFFFFF,&H00FFFFFF,&H00202020,&HA0000000,1,0,0,0,100,100,0,0,3,24,0,8,80,80,260,1
+Style: Podpis,DejaVu Sans,46,&H00FFFFFF,&H00FFFFFF,&H00202020,&HA0000000,0,0,0,0,100,100,0,0,3,14,0,8,80,80,450,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.00,0:00:01.57,Napis,,0,0,0,,{\fad(60,60)}Marketing poprosił,
+Dialogue: 0,0:00:01.63,0:00:03.13,Napis,,0,0,0,,{\fad(60,60)}żebym powiedziała,
+Dialogue: 0,0:00:03.20,0:00:06.17,Napis,,0,0,0,,{\fad(60,60)}że zawód inżyniera kontraktu jest sexy.
+Dialogue: 0,0:00:06.23,0:00:07.73,Napis,,0,0,0,,{\fad(60,60)}Jestem inżynierem.
+Dialogue: 0,0:00:07.80,0:00:10.40,Napis,,0,0,0,,{\fad(60,60)}Więc powiem to liczbami.
+Dialogue: 0,0:00:10.47,0:00:13.30,Napis,,0,0,0,,{\fad(60,60)}W 2023 roku
+Dialogue: 0,0:00:13.37,0:00:15.80,Napis,,0,0,0,,{\fad(60,60)}na infrastrukturę szło z budżetu
+Dialogue: 0,0:00:15.87,0:00:18.63,Napis,,0,0,0,,{\fad(60,60)}58 miliardów złotych.
+Dialogue: 1,0:00:15.87,0:00:18.87,Plansza,,0,0,0,,{\fad(150,200)\t(0,250,\fscx115\fscy115)\t(250,450,\fscx100\fscy100)}58 mld zł
+Dialogue: 1,0:00:16.02,0:00:18.87,Podpis,,0,0,0,,{\fad(150,200)}budżet 2023
+Dialogue: 0,0:00:18.70,0:00:22.73,Napis,,0,0,0,,{\fad(60,60)}W projekcie budżetu na 2027 rok
+Dialogue: 0,0:00:22.80,0:00:25.00,Napis,,0,0,0,,{\fad(60,60)}– 103 miliardy.
+Dialogue: 1,0:00:22.80,0:00:25.80,Plansza,,0,0,0,,{\fad(150,200)\t(0,250,\fscx115\fscy115)\t(250,450,\fscx100\fscy100)}103 mld zł
+Dialogue: 1,0:00:22.95,0:00:25.80,Podpis,,0,0,0,,{\fad(150,200)}projekt budżetu 2027
+Dialogue: 0,0:00:25.07,0:00:26.03,Napis,,0,0,0,,{\fad(60,60)}W sierpniu
+Dialogue: 0,0:00:26.10,0:00:29.33,Napis,,0,0,0,,{\fad(60,60)}budowy dróg, kolei i obiektów inżynieryjnych
+Dialogue: 0,0:00:29.40,0:00:33.03,Napis,,0,0,0,,{\fad(60,60)}urosły o 29 procent rok do roku.
+Dialogue: 1,0:00:29.40,0:00:32.40,Plansza,,0,0,0,,{\fad(150,200)\t(0,250,\fscx115\fscy115)\t(250,450,\fscx100\fscy100)}+29% r/r
+Dialogue: 1,0:00:29.55,0:00:32.40,Podpis,,0,0,0,,{\fad(150,200)}budowy infrastrukturalne, sierpień
+Dialogue: 0,0:00:33.10,0:00:36.90,Napis,,0,0,0,,{\fad(60,60)}Najmocniej od 2019.
+Dialogue: 0,0:00:36.97,0:00:38.60,Napis,,0,0,0,,{\fad(60,60)}Analitycy ostrzegają
+Dialogue: 0,0:00:38.67,0:00:40.83,Napis,,0,0,0,,{\fad(60,60)}przed spiętrzeniem projektów
+Dialogue: 0,0:00:40.90,0:00:43.40,Napis,,0,0,0,,{\fad(60,60)}przy ograniczonych mocach branży.
+Dialogue: 0,0:00:43.47,0:00:44.43,Napis,,0,0,0,,{\fad(60,60)}Po polsku:
+Dialogue: 0,0:00:44.50,0:00:45.80,Napis,,0,0,0,,{\fad(60,60)}dużo pieniędzy,
+Dialogue: 0,0:00:45.87,0:00:46.90,Napis,,0,0,0,,{\fad(60,60)}mało czasu,
+Dialogue: 0,0:00:46.97,0:00:49.47,Napis,,0,0,0,,{\fad(60,60)}setki zmian, roszczeń i terminów.
+Dialogue: 0,0:00:49.53,0:00:52.53,Napis,,0,0,0,,{\fad(60,60)}Ktoś musi to trzymać w ryzach.
+Dialogue: 0,0:00:52.60,0:00:53.43,Napis,,0,0,0,,{\fad(60,60)}Ten ktoś
+Dialogue: 0,0:00:53.50,0:00:54.60,Napis,,0,0,0,,{\fad(60,60)}to Inżynier.
+Dialogue: 0,0:00:54.67,0:00:56.17,Napis,,0,0,0,,{\fad(60,60)}Z wielkiej litery,
+Dialogue: 0,0:00:56.23,0:00:57.80,Napis,,0,0,0,,{\fad(60,60)}bo tak pisze FIDIC.
+Dialogue: 1,0:00:56.23,0:00:59.23,Plansza,,0,0,0,,{\fad(150,200)\t(0,250,\fscx115\fscy115)\t(250,450,\fscx100\fscy100)}the Engineer
+Dialogue: 1,0:00:56.38,0:00:59.23,Podpis,,0,0,0,,{\fad(150,200)}FIDIC
+Dialogue: 0,0:00:57.87,0:00:59.37,Napis,,0,0,0,,{\fad(60,60)}Ustala roszczenia,
+Dialogue: 0,0:00:59.43,0:01:01.27,Napis,,0,0,0,,{\fad(60,60)}wydaje polecenia zmian,
+Dialogue: 0,0:01:01.33,0:01:02.23,Napis,,0,0,0,,{\fad(60,60)}rozlicza.
+Dialogue: 0,0:01:02.30,0:01:03.20,Napis,,0,0,0,,{\fad(60,60)}Bez niego
+Dialogue: 0,0:01:03.27,0:01:06.40,Napis,,0,0,0,,{\fad(60,60)}miliardy zamieniają się w spory.
+Dialogue: 0,0:01:06.47,0:01:08.77,Napis,,0,0,0,,{\fad(60,60)}Na studiach Inżynier Kontraktu
+Dialogue: 0,0:01:08.83,0:01:10.53,Napis,,0,0,0,,{\fad(60,60)}w Uczelni Łazarskiego
+Dialogue: 0,0:01:10.60,0:01:13.30,Napis,,0,0,0,,{\fad(60,60)}uczymy tego razem z członkami SIDiR,
+Dialogue: 0,0:01:13.37,0:01:15.80,Napis,,0,0,0,,{\fad(60,60)}polskiego przedstawiciela FIDIC.
+Dialogue: 0,0:01:15.87,0:01:18.77,Napis,,0,0,0,,{\fad(60,60)}Partnerem jest Polski Klaster Budowlany
+Dialogue: 0,0:01:18.83,0:01:21.97,Napis,,0,0,0,,{\fad(60,60)}– blisko 500 firm budowlanych.
+Dialogue: 1,0:01:18.83,0:01:21.83,Plansza,,0,0,0,,{\fad(150,200)\t(0,250,\fscx115\fscy115)\t(250,450,\fscx100\fscy100)}~500 firm
+Dialogue: 1,0:01:18.98,0:01:21.83,Podpis,,0,0,0,,{\fad(150,200)}Polski Klaster Budowlany
+Dialogue: 0,0:01:22.03,0:01:22.93,Napis,,0,0,0,,{\fad(60,60)}Więc tak.
+Dialogue: 0,0:01:23.00,0:01:24.23,Napis,,0,0,0,,{\fad(60,60)}To jest sexy.
+Dialogue: 0,0:01:24.30,0:01:25.80,Napis,,0,0,0,,{\fad(60,60)}Szczególnie wtedy,
+Dialogue: 0,0:01:25.87,0:01:29.70,Napis,,0,0,0,,{\fad(60,60)}gdy odbiór końcowy jest w terminie.

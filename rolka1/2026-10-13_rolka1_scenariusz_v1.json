@@ -1,0 +1,52 @@
+{
+  "_opis": "Rolka 1. 'napis' = tekst na ekranie (cyfry), 'mowa' = tekst dla TTS (liczby słownie, by uniknąć błędnej odmiany), 'pauza' = przerwa PO frazie w sekundach (/ = 0.3 s, [PAUZA] = 1.0 s), 'plansza' = animowana wstawka z liczbą.",
+  "frazy": [
+    {"napis": "Marketing poprosił,", "mowa": "Marketing poprosił,", "pauza": 0.3},
+    {"napis": "żebym powiedziała,", "mowa": "żebym powiedziała,", "pauza": 0.3},
+    {"napis": "że zawód inżyniera kontraktu jest sexy.", "mowa": "że zawód inżyniera kontraktu jest seksi.", "pauza": 0.3},
+    {"napis": "Jestem inżynierem.", "mowa": "Jestem inżynierem.", "pauza": 0.3},
+    {"napis": "Więc powiem to liczbami.", "mowa": "Więc powiem to liczbami.", "pauza": 1.0},
+
+    {"napis": "W 2023 roku", "mowa": "W dwa tysiące dwudziestym trzecim roku", "pauza": 0.3},
+    {"napis": "na infrastrukturę szło z budżetu", "mowa": "na infrastrukturę szło z budżetu", "pauza": 0.3},
+    {"napis": "58 miliardów złotych.", "mowa": "pięćdziesiąt osiem miliardów złotych.", "pauza": 0.3, "plansza": "58 mld zł|budżet 2023"},
+    {"napis": "W projekcie budżetu na 2027 rok", "mowa": "W projekcie budżetu na dwa tysiące dwudziesty siódmy rok", "pauza": 0.3},
+    {"napis": "– 103 miliardy.", "mowa": "sto trzy miliardy.", "pauza": 1.0, "plansza": "103 mld zł|projekt budżetu 2027"},
+
+    {"napis": "W sierpniu", "mowa": "W sierpniu", "pauza": 0.3},
+    {"napis": "budowy dróg, kolei i obiektów inżynieryjnych", "mowa": "budowy dróg, kolei i obiektów inżynieryjnych", "pauza": 0.3},
+    {"napis": "urosły o 29 procent rok do roku.", "mowa": "urosły o dwadzieścia dziewięć procent rok do roku.", "pauza": 0.3, "plansza": "+29% r/r|budowy infrastrukturalne, sierpień"},
+    {"napis": "Najmocniej od 2019.", "mowa": "Najmocniej od dwa tysiące dziewiętnastego.", "pauza": 1.0},
+
+    {"napis": "Analitycy ostrzegają", "mowa": "Analitycy ostrzegają", "pauza": 0.3},
+    {"napis": "przed spiętrzeniem projektów", "mowa": "przed spiętrzeniem projektów", "pauza": 0.3},
+    {"napis": "przy ograniczonych mocach branży.", "mowa": "przy ograniczonych mocach branży.", "pauza": 0.3},
+    {"napis": "Po polsku:", "mowa": "Po polsku:", "pauza": 0.3},
+    {"napis": "dużo pieniędzy,", "mowa": "dużo pieniędzy,", "pauza": 0.3},
+    {"napis": "mało czasu,", "mowa": "mało czasu,", "pauza": 0.3},
+    {"napis": "setki zmian, roszczeń i terminów.", "mowa": "setki zmian, roszczeń i terminów.", "pauza": 0.3},
+    {"napis": "Ktoś musi to trzymać w ryzach.", "mowa": "Ktoś musi to trzymać w ryzach.", "pauza": 1.0},
+
+    {"napis": "Ten ktoś", "mowa": "Ten ktoś", "pauza": 0.3},
+    {"napis": "to Inżynier.", "mowa": "to Inżynier.", "pauza": 0.3},
+    {"napis": "Z wielkiej litery,", "mowa": "Z wielkiej litery,", "pauza": 0.3},
+    {"napis": "bo tak pisze FIDIC.", "mowa": "bo tak pisze FIDIK.", "pauza": 0.3, "plansza": "the Engineer|FIDIC"},
+    {"napis": "Ustala roszczenia,", "mowa": "Ustala roszczenia,", "pauza": 0.3},
+    {"napis": "wydaje polecenia zmian,", "mowa": "wydaje polecenia zmian,", "pauza": 0.3},
+    {"napis": "rozlicza.", "mowa": "rozlicza.", "pauza": 0.3},
+    {"napis": "Bez niego", "mowa": "Bez niego", "pauza": 0.3},
+    {"napis": "miliardy zamieniają się w spory.", "mowa": "miliardy zamieniają się w spory.", "pauza": 1.0},
+
+    {"napis": "Na studiach Inżynier Kontraktu", "mowa": "Na studiach Inżynier Kontraktu", "pauza": 0.3},
+    {"napis": "w Uczelni Łazarskiego", "mowa": "w Uczelni Łazarskiego", "pauza": 0.3},
+    {"napis": "uczymy tego razem z członkami SIDiR,", "mowa": "uczymy tego razem z członkami SIDIR,", "pauza": 0.3},
+    {"napis": "polskiego przedstawiciela FIDIC.", "mowa": "polskiego przedstawiciela FIDIK.", "pauza": 0.3},
+    {"napis": "Partnerem jest Polski Klaster Budowlany", "mowa": "Partnerem jest Polski Klaster Budowlany", "pauza": 0.3},
+    {"napis": "– blisko 500 firm budowlanych.", "mowa": "blisko pięćset firm budowlanych.", "pauza": 1.0, "plansza": "~500 firm|Polski Klaster Budowlany"},
+
+    {"napis": "Więc tak.", "mowa": "Więc tak.", "pauza": 0.3},
+    {"napis": "To jest sexy.", "mowa": "To jest seksi.", "pauza": 0.3},
+    {"napis": "Szczególnie wtedy,", "mowa": "Szczególnie wtedy,", "pauza": 0.3},
+    {"napis": "gdy odbiór końcowy jest w terminie.", "mowa": "gdy odbiór końcowy jest w terminie.", "pauza": 1.5}
+  ]
+}
